@@ -49,7 +49,7 @@ const WorkloadCard: React.FC<WorkloadCardProps> = ({
     if (key === 'joints') return 'Detected';
     
     // Format all numeric vitals
-    if (key === 'HR' || key === 'RR' || key === 'SpO2' || key === 'CO2_ET' || key === 'BP_DIA' || key === 'BP_SYS') {
+    if (key === 'HR' || key === 'RR' || key === 'SpO2' || key === 'CO2_ET' || key === 'BP_DIA' || key === 'BP_SYS' || key === 'BP_SIA') {
       return typeof value === 'number' ? value.toFixed(1) : '--';
     }
 
@@ -68,6 +68,7 @@ const WorkloadCard: React.FC<WorkloadCardProps> = ({
       CO2_ET: 'mmHg',
       BP_DIA: 'mmHg',
       BP_SYS: 'mmHg',
+      BP_SIA: 'mmHg',
       prediction: '',
       joints: '',
     };
