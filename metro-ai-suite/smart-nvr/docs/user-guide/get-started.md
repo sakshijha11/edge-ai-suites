@@ -1,4 +1,4 @@
-# Smart NVR - Getting Started
+# Get Started
 
 ## Overview
 
@@ -8,8 +8,8 @@ Smart NVR is a GenAI-powered video analytics application that transforms traditi
 
 ### System Requirements
 
-- System must meet [minimum requirements](./system-requirements.md)
-- 3-4 devices for distributed deployment
+- System must meet [minimum requirements](./get-started/system-requirements.md).
+- 3-4 devices for distributed deployment.
 
 Smart NVR operates in a distributed architecture requiring multiple services across 3-4 devices for optimal performance:
 
@@ -33,10 +33,11 @@ Before setting up Smart NVR, ensure these services are running on their respecti
 #### 1. VSS (Video Search and Summarization) Services
 
 Deploy these on separate devices:
+
 - **VSS Search**: Handles video search functionality
 - **VSS Summary**: Provides video summarization capabilities
 
-📖 [VSS Documentation](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/sample-applications/video-search-and-summarization/docs/user-guide/get-started.md)
+[VSS Documentation](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/sample-applications/video-search-and-summarization/docs/user-guide/get-started.md)
 
 #### 2. VLM Microservice (Optional)
 
@@ -45,7 +46,7 @@ Required only when enabling AI-powered event descriptions (`NVR_GENAI=true`):
 - Runs the VLM model defined in the frigate [config file](../../resources/frigate-config/config.yml)
 - Use `VLM_MAX_COMPLETION_TOKENS` to limit response length during deployment
 
-📖 [VLM Serving Documentation](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/vlm-openvino-serving/docs/user-guide/get-started.md)
+[VLM Serving Documentation](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/vlm-openvino-serving/docs/user-guide/get-started.md)
 
 ## Quick Start
 
@@ -64,12 +65,12 @@ Set up the required environment variables:
 ```bash
 # Docker Registry Details
 export REGISTRY_URL="intel"
-export TAG="1.2.2"
+export TAG="1.2.3"
 
 # VSS Service Endpoints
 export http_proxy=<http-proxy>
 export https_proxy=<https-proxy>
-export no_proxy=<no_proxy>             # Default localhost,127.0.0.1,192.168.0.0/16,172.16.0.0/12,127.0.0.0/8,10.0.0.0/8,.svc.cluster.local
+export no_proxy=<no_proxy>
 
 # VSS Service Endpoints
 export VSS_SUMMARY_IP=<vss-summary-device-ip>
@@ -83,7 +84,7 @@ export MQTT_PASSWORD=<mqtt-password>
 
 # Feature Toggles
 export NVR_GENAI=false                  # Set to 'true' to enable AI-powered event descriptions
-export NVR_SCENESCAPE=false             # Set to 'true' to enable Scenescape integration
+export NVR_SCENESCAPE=false             # Set to 'true' to enable SceneScape integration
 ```
 
 ### Step 3: Launch Application
@@ -101,7 +102,7 @@ This launches all required containers:
 
 Open your browser and navigate to:
 
-```
+```text
 http://<host-ip>:7860
 ```
 
@@ -118,20 +119,11 @@ source setup.sh stop
 
 To enable Smart NVR's GenAI capabilities for intelligent event descriptions:
 
-#### 1. Update Frigate Configuration
-
-Modify `resources/frigate-config/config.yml`:
-
-```yaml
-genai:
-  enabled: true
-```
-
-#### 2. Ensure VLM Service Availability
+#### 1. Ensure VLM Service Availability
 
 Verify the VLM microservice is running and accessible at the configured endpoint.
 
-#### 3. Set Environment Variable
+#### 2. Set Environment Variable
 
 ```bash
 export NVR_GENAI=true
@@ -139,15 +131,19 @@ export VLM_SERVING_IP=<vlm-serving-device-ip>
 export VLM_SERVING_PORT=<vlm-serving-port>
 ```
 
-#### 4. Run the application
+#### 3. Run the application
 
-Re-run the application after [configuring](./get-started.md#step-2-configure-environment) the rest of environment variables. Ensure that the environment value `export NVR_GENAI=true` is set.
+Re-run the application after [configuring](#step-2-configure-environment) the rest of environment variables. Ensure that the environment value `export NVR_GENAI=true` is set.
 
-> **⚠️ Important Notes**:
+> **Important:**
 >
-> - This feature is experimental and may be unstable due to underlying Frigate GenAI implementation
-> - Requires VLM microservice to be running
-> - Disabled by default for system stability
+> - This feature is experimental and may be unstable due to underlying Frigate GenAI implementation.
+> - Requires VLM microservice to be running.
+> - Disabled by default for system stability.
+> - SmartNVR uses either Frigate or Scenescape for GenAI capabilities.
+>   GenAI in both cannot be enabled at the same time. If Scenescape is enabled,
+>   its capabilities are prioritized over Frigate, with Frigate used in "dumb" mode.
+> - If NVR_SCENESCAPE=true. then NVR_GENAI must be set to false. Else, error is thrown.
 
 ## Running Tests and Generating Coverage Report
 
@@ -192,15 +188,26 @@ To ensure the functionality of the microservice and measure test coverage, follo
 
 These steps will help you verify the functionality of the microservice and ensure adequate test coverage.
 
-### Scenescape Integration
+### Intel® SceneScape Integration
 
-For traffic analytics capabilities with Intel Scenescape (vehicle counting, traffic flow analysis), see the **[Scenescape Integration Guide](./scenescape-integration.md)**.
+For traffic analytics capabilities with Intel® SceneScape (vehicle counting, traffic flow analysis), see the **[Intel® SceneScape Integration Guide](./scenescape-integration.md)**.
 
 ### Custom Build Configuration
 
-If using custom [build flags](./how-to-build-from-source.md#customizing-the-build), ensure the same environment variables are set before running the setup script.
+If using custom [build flags](./get-started/build-from-source.md#customizing-the-build), ensure the same environment variables are set before running the setup script.
 
 ## Next Steps
 
 1. **Explore Features**: Learn about application capabilities in the [How to Use Guide](./how-to-use-application.md)
 2. **Troubleshooting**: If you encounter issues, check the [Troubleshooting Guide](./troubleshooting.md)
+
+<!--hide_directive
+:::{toctree}
+:hidden:
+
+./get-started/system-requirements
+./get-started/build-from-source
+./get-started/deploy-with-helm
+
+:::
+hide_directive-->

@@ -1,19 +1,22 @@
 app:
   name: Smart Classroom
   cleanup_on_exit: true
+  use_ov_genai: True # True or False, applicable for provider: openvino
 
 monitoring:
   logs_dir: ./monitoring/logs
   interval: 2
-  socwatch_path: monitoring/tools/socwatch_windows_v2025.5.1/64/socwatch.exe
+  socwatch_path: monitoring/tools/socwatch_windows_v2026.0/64/socwatch.exe
   npu_exe_path: tools/level-zero/build/bin/Release/npu_utilization.exe
   execution_logs: monitoring/executionlogs
 models:
   asr:
     provider: openvino # openvino, funasr and openai supported
-    name: whisper-base  # can be (whisper-base, whisper-small etc) or paraformer-zh
+    name: whisper-small  # can be (whisper-base, whisper-small etc) or paraformer-zh
     device: CPU # CPU Recommended
     temperature: 0.0
+    diarization: True
+    hf_token: None   # needed only if diarization=true
     models_base_path: "models"
     threads_limit: Null # applied only if > 0 (else defaults are used); value can be tuned based on CPU specifications
 
@@ -27,15 +30,322 @@ models:
     use_cache: True
     models_base_path: "models"
     language: en # en or zh
+    mode: dialog   # dialog | teacher | hybrid
     system_prompt: 
-      en: "Summarize the classroom transcription concisely and in Markdown format with heading. Preserve the full meaning of the lecture, focusing on key points and concepts. Do not add commentary or extra details beyond the transcription."
-      zh: "你是一个课堂教学助手，根据提供的原始课堂音频的转录文本，以Markdown格式提炼出本节课的核心内容、知识点结构、讲解顺序，解释每个知识点后，用简洁清晰的语言进行总结。注意不要遗漏主要知识点，也不要捏造任何没有提及的知识点，总结要保证知识点真实准确，避免任何冗余或误导性内容。"
+      en:
+
+        Dialog: |
+          Summarize the classroom transcript.
+
+          Format:
+          TEACHER = instructor
+          STUDENT_XX = students
+
+          Instructions:
+          - Provide a full dialog summary.
+          - Preserve the flow of discussion.
+          - Include both teacher explanations and student questions.
+          - Ignore filler or repetition.
+
+          Output valid Markdown using exactly these sections:
+
+          ## Teacher Summary
+          - ...
+
+          ## Student Questions
+          - ...
+
+          ## Key Takeaways
+          - ...
+
+          ## Session Outline
+          - ...
+
+          Rules:
+          - Bullet points only.
+          - Do not quote transcript text.
+          - Do not add extra headings.
+
+
+        Teacher: |
+          Summarize only the TEACHER explanations from the transcript.
+
+          Instructions:
+          - Ignore student dialog completely.
+          - Focus strictly on teacher explanations.
+          - Do not invent missing content.
+          - If a section has no content, write "None".
+
+          Output valid Markdown using exactly these sections:
+
+          ## Teacher Summary
+          - ...
+
+          ## Student Questions
+          - None
+
+          ## Key Takeaways
+          - ...
+
+          ## Session Outline
+          - ...
+
+          Rules:
+          - Bullet points only.
+          - Do not quote transcript text.
+          - Do not add extra headings.
+
+
+        Hybrid: |
+          Summarize with focus on TEACHER explanations,
+          but use STUDENT questions as supporting context.
+
+          Instructions:
+          - Teacher explanations are primary.
+          - Include student questions only when they clarify context.
+          - Do not invent content.
+          - Ignore filler.
+
+          Output valid Markdown using exactly these sections:
+
+          ## Teacher Summary
+          - ...
+
+          ## Student Questions
+          - ...
+
+          ## Key Takeaways
+          - ...
+
+          ## Session Outline
+          - ...
+
+          Rules:
+          - Bullet points only.
+          - Do not quote transcript text.
+          - Do not add extra headings.
+      zh:
+        Dialog: |
+          总结课堂转录内容。
+
+          转录格式:
+          教师 = 教师发言
+          学生_XX = 学生发言
+
+          指示:
+          - 提供完整的对话摘要。
+          - 保持讨论的整体流程。
+          - 包含教师讲解和学生提问。
+          - 忽略无意义的填充语或重复内容。
+
+          使用以下固定章节标题输出有效 Markdown:
+
+          ## 教师总结
+          - ...
+
+          ## 学生提问
+          - ...
+
+          ## 关键要点
+          - ...
+
+          ## 课程结构
+          - ...
+
+          规则:
+          - 仅使用项目符号列表。
+          - 不要直接引用原始转录文本。
+          - 不要添加额外标题。
+
+        Teacher: |
+          仅总结转录中 教师 的讲解内容。
+
+          指示:
+          - 完全忽略学生对话。
+          - 严格聚焦教师的解释内容。
+          - 不要编造缺失的内容。
+          - 如果某个章节没有内容，写 "None"。
+
+          使用以下固定章节标题输出有效 Markdown:
+
+          ## 教师总结
+          - ...
+
+          ## 学生提问
+          - None
+
+          ## 关键要点
+          - ...
+
+          ## 课程结构
+          - ...
+
+          规则:
+          - 仅使用项目符号列表。
+          - 不要直接引用原始转录文本。
+          - 不要添加额外标题。
+
+
+        Hybrid: |
+          以 教师 讲解为重点进行总结，
+          并在必要时使用 学生 提问作为上下文补充。
+
+          指示:
+          - 教师讲解为主要内容。
+          - 仅在学生问题能帮助理解上下文时才包含。
+          - 不要编造内容。
+          - 忽略填充语或重复内容。
+
+          使用以下固定章节标题输出有效 Markdown:
+
+          ## 教师总结
+          - ...
+
+          ## 学生提问
+          - ...
+
+          ## 关键要点
+          - ...
+
+          ## 课程结构
+          - ...
+
+          规则:
+          - 仅使用项目符号列表。
+          - 不要直接引用原始转录文本。
+          - 不要添加额外标题。
+
     model_hub: huggingface # huggingface or modelscope
+
+  va:
+    models_base_path: "models"
+    threshold: 0.5 # confidence threshold for YOLO detections
 
 mindmap:
   system_prompt:
-    en: "Generate a Mermaid mindmap with proper syntax. Use exactly this format: Start with 'mindmap', then one root node with double parentheses, then child nodes with proper indentation (2 spaces per level). No bullet points, no multiple root nodes. There must be exactly ONE 'mindmap' declaration and ONE root node. Example: mindmap\n  root((Main Topic))\n    Child1\n      Subchild1\n      Subchild2\n    Child2\n      Subchild3"
-    zh: "生成正确语法的Mermaid思维导图。只允许一个'mindmap'根节点，并以'mindmap'开头。必须且只能有一个根节点((主题))，所有内容都应在同一个思维导图中，从该根节点展开。不要重复'mindmap'，不要使用多个根节点。不要使用Markdown格式（不要包含```mermaid或```）。示例：mindmap\n  root((课堂主题))\n    部分一\n      子节点A\n      子节点B\n    部分二\n      子节点C"
+    en: |
+      Generate a comprehensive jsMind JSON structure that accurately captures ALL key concepts from the summary. Follow these strict rules:
+ 
+      1. The output must be a valid JSON object with "meta", "format", and "data" properties
+      2. Set format to "node_tree"
+      3. There must be exactly ONE root node with id "root"
+      4. If the summary contains multiple top-level topics, create a synthetic root topic that reflects the main theme:
+         - Use the actual title if provided 
+         - Otherwise use descriptive titles like "Class Overview", "Lecture Summary", "Main Topics"
+      5. Each node must have "id" and "topic" properties
+      6. Child nodes are placed in a "children" array
+      7. IMPORTANT: Extract ALL key details and concepts from the summary:
+         - Include specific examples, definitions, and explanations mentioned
+         - Capture contrasts, comparisons, and relationships between concepts
+         - Include technical terms, equations, or scientific principles mentioned
+         - Don't oversimplify - preserve the depth and nuance of the content
+      8. Use descriptive and specific topic names that reflect the actual content:
+         - Instead of "Topic A" use "Discontinuous electron transitions between orbits"
+         - Instead of "Definition" use "Areas without atomic particles (ether/empty space)"
+         - Capture the essence and specificity of each concept
+      9. Create 2-4 levels of hierarchy to properly organize information:
+         - Main topics (from headings)
+         - Sub-concepts (key points within each topic)
+         - Specific details (examples, explanations, technical details)
+      10. Ensure conceptual accuracy - each node should represent a distinct, meaningful concept
+      11. Do NOT include any markdown formatting, code fences, or explanatory text
+      12. Output only the raw JSON structure
+ 
+      Example of GOOD specificity:
+      {
+        "meta": {
+          "name": "physics_lecture",
+          "author": "ai_assistant", 
+          "version": "1.0"
+        },
+        "format": "node_tree",
+        "data": {
+          "id": "root",
+          "topic": "Quantum Mechanics and Wave Theory",
+          "children": [
+            {
+              "id": "wave_particle_duality",
+              "topic": "Wave-Particle Duality",
+              "children": [
+                {"id": "photon_behavior", "topic": "Photons exhibit both wave and particle properties"},
+                {"id": "double_slit", "topic": "Double-slit experiment demonstrates interference"},
+                {"id": "measurement_effect", "topic": "Measurement collapses wave function"}
+              ]
+            },
+            {
+              "id": "uncertainty_principle",
+              "topic": "Heisenberg Uncertainty Principle",
+              "children": [
+                {"id": "position_momentum", "topic": "Cannot precisely know both position and momentum"},
+                {"id": "mathematical_formulation", "topic": "Δx·Δp ≥ ℏ/2 mathematical relationship"},
+                {"id": "quantum_limitations", "topic": "Fundamental limit of quantum measurements"}
+              ]
+            }
+          ]
+        }
+      }
+
+    zh: |
+      生成全面的jsMind JSON结构，准确捕获摘要中的所有关键概念。严格遵循以下规则：
+ 
+      1. 输出必须是包含"meta"、"format"和"data"属性的有效JSON对象
+      2. 将format设置为"node_tree"
+      3. 必须且只能有一个id为"root"的根节点
+      4. 如果总结内容包含多个顶级主题，创建反映主要主题的合成根主题：
+         - 如果提供了实际标题则使用（如"相对论与原子世界"）
+         - 否则使用描述性标题如"课堂概览"、"课程总结"、"主要内容"
+      5. 每个节点必须有"id"和"topic"属性
+      6. 子节点放在"children"数组中
+      7. 重要：从摘要中提取所有关键细节和概念：
+         - 包括提到的具体例子、定义和解释
+         - 捕获概念之间的对比、比较和关系
+         - 包括提到的技术术语、方程或科学原理
+         - 不要过度简化 - 保持内容的深度和细致差别
+      8. 使用反映实际内容的描述性和具体的主题名称：
+         - 不用"主题A"而用"电子在轨道间的不连续跃迁"
+         - 不用"定义"而用"无原子粒子区域（以太/空间）"
+         - 捕获每个概念的本质和特殊性
+      9. 创建2-4层级结构来正确组织信息：
+         - 主要主题（来自标题）
+         - 子概念（每个主题内的关键点）
+         - 具体细节（例子、解释、技术细节）
+      10. 确保概念准确性 - 每个节点应代表一个独特、有意义的概念
+      11. 不要包含任何markdown格式、代码块或解释性文本
+      12. 只输出原始JSON结构
+ 
+      良好特异性示例：
+      {
+        "meta": {
+          "name": "physics_lecture",
+          "author": "ai_assistant",
+          "version": "1.0"
+        },
+        "format": "node_tree", 
+        "data": {
+          "id": "root",
+          "topic": "量子力学与波动理论",
+          "children": [
+            {
+              "id": "wave_particle_duality",
+              "topic": "波粒二象性",
+              "children": [
+                {"id": "photon_behavior", "topic": "光子同时表现出波动和粒子特性"},
+                {"id": "double_slit", "topic": "双缝实验证明干涉现象"},
+                {"id": "measurement_effect", "topic": "测量导致波函数坍缩"}
+              ]
+            },
+            {
+              "id": "uncertainty_principle",
+              "topic": "海森堡不确定性原理",
+              "children": [
+                {"id": "position_momentum", "topic": "无法同时精确知道位置和动量"},
+                {"id": "mathematical_formulation", "topic": "Δx·Δp ≥ ℏ/2 数学关系"},
+                {"id": "quantum_limitations", "topic": "量子测量的基本限制"}
+              ]
+            }
+          ]
+        }
+      }
   min_token: 20
 
 audio_preprocessing:
@@ -54,3 +364,10 @@ audio_util:
 
 pipeline:
   delete_chunks_after_use: true
+
+va_pipeline:
+  mediamtx_path: components/va/bin/mediamtx
+  plugin_path: components/va
+  rtsp_codec: h264 # h264 or h265
+  output_rtsp_url: rtsp://127.0.0.1:8554
+  hls_base_url: http://127.0.0.1:8888

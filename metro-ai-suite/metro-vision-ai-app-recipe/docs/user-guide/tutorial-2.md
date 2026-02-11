@@ -162,35 +162,53 @@ Add a function node to enhance the AI inference data with custom metadata:
 ```javascript
 // Extract license, color, and type from msg.payload
 // Skip frames that don't have all required attributes
+// Uses payload.metadata.objects and parses JSON
 
-// Check if payload exists and has objects array
-if (!msg.payload || !msg.payload.objects || !Array.isArray(msg.payload.objects)) {
-    return null; // Ignore this data frame
+// Parse JSON if payload is a string
+if (typeof msg.payload === "string") {
+    try {
+        msg.payload = JSON.parse(msg.payload);
+    } catch (e) {
+        node.error("Failed to parse JSON: " + e);
+        return null;
+    }
+}
+
+// Validate that metadata.objects exists
+if (
+    !msg.payload ||
+    !msg.payload.metadata ||
+    !msg.payload.metadata.objects ||
+    !Array.isArray(msg.payload.metadata.objects)
+) {
+    return null; // Ignore this frame
 }
 
 let extractedData = [];
 
-// Process each object in the objects array
-for (let obj of msg.payload.objects) {
-    // Check if object has all required attributes
+// Process each object in metadata.objects
+for (let obj of msg.payload.metadata.objects) {
+
+    // All attributes must exist
     if (!obj.license_plate || !obj.color || !obj.type) {
         continue; // Skip this object if missing any attribute
     }
-    
-    // Extract the data
+
     let extractedObj = {
         license: obj.license_plate.label || null,
         color: obj.color.label || null,
         type: obj.type.label || null,
-        // Optional: include confidence scores
+
+        // Confidence fields
+        license_confidence: obj.license_plate.confidence || null,
         color_confidence: obj.color.confidence || null,
         type_confidence: obj.type.confidence || null
     };
-    
+
     extractedData.push(extractedObj);
 }
 
-// If no valid objects found, ignore this data frame
+// If no valid objects found, ignore this frame
 if (extractedData.length === 0) {
     return null;
 }
@@ -254,7 +272,7 @@ After successfully setting up the AI Tolling system with Node Red, consider thes
 
 ### **Node-RED Interface Not Accessible**
 - **Problem**: Cannot access Node-RED at the specified URL
-- **Solution**: 
+- **Solution**:
   ```bash
   # Check if Node-RED container is running
   docker ps | grep node-red
@@ -264,14 +282,14 @@ After successfully setting up the AI Tolling system with Node Red, consider thes
 
 ### **No Data in Debug Panel**
 - **Problem**: Debug nodes show no incoming data
-- **Solution**: 
+- **Solution**:
   - Verify the AI application is running and generating inference data
   - Check MQTT topic names match your application's output topics
   - Ensure proper JSON parsing in function nodes
 
 ### **Function Node Errors**
 - **Problem**: Function node shows errors in the debug panel
-- **Solution**: 
+- **Solution**:
   - Add try-catch blocks around JSON parsing
   - Use `node.warn()` or `node.error()` for debugging
   - Validate input data structure before processing
@@ -280,5 +298,5 @@ After successfully setting up the AI Tolling system with Node Red, consider thes
 
 - [Node-RED Official Documentation](https://nodered.org/docs/)
 - [MQTT Protocol Specification](https://mqtt.org/)
-- [Intel DLStreamer Documentation](https://dlstreamer.github.io/)
+- [DL Streamer Documentation](https://dlstreamer.github.io/)
 - [Metro AI Solutions](https://github.com/open-edge-platform/edge-ai-suites/tree/main/metro-ai-suite)

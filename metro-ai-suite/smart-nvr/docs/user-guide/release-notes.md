@@ -1,37 +1,51 @@
 # Release Notes
 
+- [Version 1.2.3](#version-123)
+- [Version 1.2.2](#version-122)
+- [Version 1.2.1](#version-121)
+- [Version 1.2.0](#version-120)
+- [Version RC1](#version-rc1)
+
 ## Current Release
 
-**Version**: 1.2.2 \
+### Version 1.2.3
+
+**Release Date**: 24 November 2025
+
+**New Features**:
+
+- Minor Fixes
+
+**Known Issues**:
+
+- Intel® SceneScape Integration Limitation: Intel® SceneScape integration is currently not supported when deploying via Helm charts.
+- Edge Manageability Framework and Edge Microvisor Toolkit are not supported yet.
+- SmartNVR will not work on EMT-S and EMT-D due to Frigate incompatibility with Edge Microvisor Toolkit.
+- The **AI-Powered Event Viewer** feature relies on Frigate GenAI features, which may exhibit instability or bugs, impacting event data processing reliability.
+
+## Previous Releases
+
+### Version 1.2.2
+
 **Release Date**: 14 November 2025
 
-**New Features**
+**New Features**:
 
 - Bug Fixes
 
-**Known Issues**
+### Version 1.2.1
 
-- Scenescape Integration Limitation: Scenescape integration is currently not supported when deploying via Helm charts.
-- EMF and EMT are not supported yet.
-- SmartNVR will not work on EMT-S and EMT-D due to Frigate incompatibility with EMT.
-- The **AI-Powered Event Viewer** feature relies on Frigate GenAI features, which may exhibit instability or bugs, impacting event data processing reliability.
-
-
-## Previous Release
-
-**Version**: 1.2.1 \
 **Release Date**: 30 October 2025
 
-**New Features**
+**New Features**:
 
 - Continuous Video Streaming: Introduced support for uninterrupted video streaming based on user-selected cameras.
 - Helm Chart Support: Deployment via Helm charts is now supported, simplifying installation and configuration.
-- Rules Engine Integration: Enabled communication between the rules engine and Scenescape, demonstrated using the Smart Intersection RI integration.
+- Rules Engine Integration: Enabled communication between the rules engine and Intel® SceneScape, demonstrated using the Smart Intersection RI integration.
 - Unit Testing: Added comprehensive unit test cases to improve reliability and maintainability.
 
-## Previous Release
+### Version 1.2.0
 
-**Version**: 1.2.0 \
 **Release Date**: 04 August 2025
 
 **Features**:
@@ -41,9 +55,8 @@
   - Updated docker images to public registry.
   - Updated README to pull the image from remote registry.
 
-## Previous releases
+### Version RC1
 
-**Version**: RC1 \
 **Release Date**: 14 July 2025
 
 **Features**:
@@ -53,7 +66,7 @@
 - Docker compose based deployment for the E2E application
 - Auto Routing of the NVR events
 - Routing of the events based on the timestamp
-- [Experimental] Showcasing Using NVR's Event routing capabilities to OEP VLM microservice.
+- Experimental Showcasing Using NVR's Event routing capabilities to OEP VLM microservice.
 
 **HW used for validation**:
 
@@ -61,7 +74,7 @@
 
 **Known Issues/Limitations**:
 
-- EMF and EMT are not supported yet.
+- Edge Manageability Framework and Edge Microvisor Toolkit are not supported yet.
 - Users are required to build the images and use the sample application. Docker images are not available yet on public registries (pending approvals).
 - Helm charts for the application are not supported in this release.
 - The **AI-Powered Event Viewer** feature relies on Frigate GenAI features, which may exhibit instability or bugs, impacting event data processing reliability.

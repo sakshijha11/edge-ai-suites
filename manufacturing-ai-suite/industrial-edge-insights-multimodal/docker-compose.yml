@@ -3,7 +3,6 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-version: '3.6'
 services:
   ia-telegraf:
     user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
@@ -80,7 +79,7 @@ services:
   ia-time-series-analytics-microservice:
     container_name: ia-time-series-analytics-microservice
     hostname: ia-time-series-analytics-microservice
-    image: ${DOCKER_REGISTRY}${TIME_SERIES_ANALYTICS_IMAGE}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}
+    image: ${DOCKER_REGISTRY}${TIME_SERIES_ANALYTICS_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
     restart: unless-stopped
     depends_on:
       - ia-influxdb
@@ -115,21 +114,23 @@ services:
     - timeseries_network
     volumes:
     - "vol_temp_time_series_analytics_microservice:/tmp/"
-    - ./configs/time-series-analytics-microservice/udfs/:/tmp/weld_anomaly_detector/udfs/
-    - ./configs/time-series-analytics-microservice/tick_scripts/:/tmp/weld_anomaly_detector/tick_scripts/
-    - ./configs/time-series-analytics-microservice/config.json:/app/config.json
-    - ./configs/time-series-analytics-microservice/models/:/tmp/weld_anomaly_detector/models/
-    - /dev/dri:/dev/dri
+    - ./configs/time-series-analytics-microservice/udfs/:/tmp/weld_anomaly_detector/udfs/:ro
+    - ./configs/time-series-analytics-microservice/tick_scripts/:/tmp/weld_anomaly_detector/tick_scripts/:ro
+    - ./configs/time-series-analytics-microservice/config.json:/app/config.json:ro
+    - ./configs/time-series-analytics-microservice/models/:/tmp/weld_anomaly_detector/models/:ro
+    - ${DRI_MOUNT_PATH:-/dev/null}:/dev/dri:ro
     - "/run/udev:/run/udev:ro"
     group_add:
     # render group ID for ubuntu 20.04 host OS
     - "109"
     # render group ID for ubuntu 22.04 host OS
     - "110"
+    # render group ID for ubuntu 24.04 host OS
+    - "992"
     devices:
       # Following devices under /dev filesystem will be needed based on usecase
       # dri - GPU
-    - "/dev/dri:/dev/dri"
+    - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
 
   ia-grafana:
     image: grafana/grafana-oss:12.0.0-ubuntu
@@ -205,7 +206,7 @@ services:
     container_name: ia-weld-data-simulator
     hostname: ia-weld-data-simulator
     read_only: true
-    image: ${DOCKER_REGISTRY}${WELD_SIMULATOR_IMAGE}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}
+    image: ${DOCKER_REGISTRY}${WELD_SIMULATOR_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
     restart: unless-stopped
     security_opt:
     - no-new-privileges
@@ -225,6 +226,8 @@ services:
       CONTINUOUS_SIMULATOR_INGESTION: ${CONTINUOUS_SIMULATOR_INGESTION}
       SIMULATION_TARGET_FPS: ${SIMULATION_TARGET_FPS}
       LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - ./weld-data-simulator/simulation-data:/simulation-data
     networks:
     - timeseries_network
 
@@ -233,13 +236,15 @@ services:
     container_name: nginx_proxy
     read_only: true
     user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
-    # entrypoint: ["sleep", "infinity"]
+    security_opt:
+    - no-new-privileges
+    restart: unless-stopped
     command: >
      /bin/sh -c "/usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
     environment:
-      no_proxy: "ia-grafana,ia-time-series-analytics-microservice,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP}"
-      NO_PROXY: "ia-grafana,ia-time-series-analytics-microservice,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP}"
-      HOST_IP: ${HOST_IP}
+      no_proxy: "ia-grafana,ia-time-series-analytics-microservice,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},seaweedfs-filer"
+      NO_PROXY: "ia-grafana,ia-time-series-analytics-microservice,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},seaweedfs-filer"
+      MEDIAMTX_SERVER: mediamtx
       WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
     ports:
       - "${GRAFANA_PORT}:15443"   # HTTPS for Grafana and TS MS Rest API
@@ -259,6 +264,7 @@ services:
       - ia-mqtt-broker
       - mediamtx
       - coturn
+      - seaweedfs-filer
   ia-fusion-analytics:
     build:
       context: $PWD/fusion-analytics
@@ -267,8 +273,11 @@ services:
         TIMESERIES_USER_NAME: ${TIMESERIES_USER_NAME}
         TIMESERIES_UID: ${TIMESERIES_UID}
     container_name: ia-fusion-analytics
-    image: ${DOCKER_REGISTRY}${FUSION_MODULE_IMAGE}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}
+    image: ${DOCKER_REGISTRY}${FUSION_MODULE_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
+    read_only: true
     restart: unless-stopped
+    security_opt:
+    - no-new-privileges
     environment:
       # MQTT Configuration
       MQTT_BROKER: ia-mqtt-broker
@@ -295,19 +304,20 @@ services:
     networks:
       - timeseries_network
   dlstreamer-pipeline-server:
-    image: ${DLSTREAMER_PIPELINE_SERVER_IMAGE}
+    image: ${DOCKER_REGISTRY}${DLSTREAMER_PIPELINE_SERVER_IMAGE}
     container_name: dlstreamer-pipeline-server
     hostname: dlstreamer-pipeline-server
+    read_only: true
     networks:
     - timeseries_network
     restart: unless-stopped
     security_opt:
     - no-new-privileges
-    ports:
-    - '8080:8080'
-    - '8554:8554'
     depends_on:
-      - ia-weld-data-simulator
+      ia-weld-data-simulator:
+        condition: service_started
+      seaweedfs-s3:
+        condition: service_started
     environment:
       AppName: "DLStreamerPipelineServer"
       ENABLE_WEBRTC: true
@@ -315,30 +325,31 @@ services:
       ENABLE_RTSP: true
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
-      no_proxy: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,${MR_MINIO_HOSTNAME},ia-mqtt-broker
-      NO_PROXY: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,${MR_MINIO_HOSTNAME},ia-mqtt-broker
+      no_proxy: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,${S3_STORAGE_HOST},ia-mqtt-broker
+      NO_PROXY: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,${S3_STORAGE_HOST},ia-mqtt-broker
       GST_DEBUG: "1"
       REST_SERVER_PORT: ${REST_SERVER_PORT}
-      S3_STORAGE_HOST: ${MR_MINIO_HOSTNAME}
-      S3_STORAGE_PORT: ${MR_MINIO_SERVER_PORT}
-      S3_STORAGE_USER: ${MR_MINIO_ACCESS_KEY}
-      S3_STORAGE_PASS: ${MR_MINIO_SECRET_KEY}
+      S3_STORAGE_HOST: ${S3_STORAGE_HOST}
+      S3_STORAGE_PORT: ${S3_STORAGE_PORT}
+      S3_STORAGE_USER: ${S3_STORAGE_USERNAME}
+      S3_STORAGE_PASS: ${S3_STORAGE_PASSWORD}
       SERVICE_NAME: "dlstreamer-pipeline-server"
       ENABLE_OPEN_TELEMETRY: true
       OTEL_COLLECTOR_HOST: ${OTEL_COLLECTOR_HOST}
       OTEL_COLLECTOR_PORT: ${OTEL_COLLECTOR_PORT}
       OTEL_EXPORT_INTERVAL_MILLIS: ${OTEL_EXPORT_INTERVAL_MILLIS}
-      OPCUA_SERVER_IP: ${OPCUA_SERVER_IP}
-      OPCUA_SERVER_PORT: ${OPCUA_SERVER_PORT}
-      OPCUA_SERVER_USERNAME: ${OPCUA_SERVER_USERNAME}
-      OPCUA_SERVER_PASSWORD: ${OPCUA_SERVER_PASSWORD}
+      OPCUA_SERVER_IP: ${OPCUA_SERVER_IP:-"ia-opcua-server"}
+      OPCUA_SERVER_PORT: ${OPCUA_SERVER_PORT:-4840}
+      OPCUA_SERVER_USERNAME: ${OPCUA_SERVER_USERNAME:-""}
+      OPCUA_SERVER_PASSWORD: ${OPCUA_SERVER_PASSWORD:-""}
       # Model Registry Microservice
-      MR_URL: ${MR_URL}
-      MR_SAVED_MODELS_DIR: ${MR_SAVED_MODELS_DIR}
-      MR_REQUEST_TIMEOUT: ${MR_REQUEST_TIMEOUT}
-      MR_VERIFY_CERT: ${MR_VERIFY_CERT}
+      MR_URL: ${MR_URL:-""}
+      MR_SAVED_MODELS_DIR: ${MR_SAVED_MODELS_DIR:-""}
+      MR_REQUEST_TIMEOUT: ${MR_REQUEST_TIMEOUT:-""}
+      MR_VERIFY_CERT: ${MR_VERIFY_CERT:-""}
       MQTT_HOST: ia-mqtt-broker
       MQTT_PORT: 1883
+      LOG_LEVEL: ${LOG_LEVEL}
     volumes:
     - vol_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
     - /var/tmp:/var/tmp
@@ -379,11 +390,10 @@ services:
     image: bluenviron/mediamtx:1.11.3
     container_name: mediamtx
     restart: unless-stopped
-    ports:
-      - ${WHIP_SERVER_PORT}:8889   # WebRTC
-      - 9554:8554   # RTSP
-      # - "8888:8888"   # HTTP API / Web UI
-      # - "8890:8890"   # RTMP
+    read_only: true
+    security_opt:
+    - no-new-privileges
+    user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
     environment:
       - MTX_LOGLEVEL=info
       - MTX_RTSP=yes
@@ -404,9 +414,113 @@ services:
     networks:
     - timeseries_network
   
+  seaweedfs-master:
+    image: ${SEAWEEDFS_IMAGE}
+    hostname: seaweedfs-master
+    container_name: seaweedfs-master
+    read_only: true
+    user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
+    security_opt:
+    - no-new-privileges
+    networks:
+      - timeseries_network
+    volumes:
+      - seaweed_master_data:/data
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+    command: master -ip=seaweedfs-master -ip.bind=0.0.0.0
+
+  seaweedfs-volume:
+    image: ${SEAWEEDFS_IMAGE}
+    hostname: seaweedfs-volume
+    container_name: seaweedfs-volume
+    read_only: true
+    user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
+    security_opt:
+    - no-new-privileges
+    networks:
+      - timeseries_network
+    volumes:
+      - seaweed_volume_data:/data
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+    command: volume -mserver=seaweedfs-master:9333 -ip.bind=0.0.0.0 -port=8080
+    depends_on:
+      - seaweedfs-master
+
+  seaweedfs-filer:
+    image: ${SEAWEEDFS_IMAGE}
+    hostname: seaweedfs-filer
+    container_name: seaweedfs-filer
+    read_only: true
+    user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
+    security_opt:
+    - no-new-privileges
+    networks:
+      - timeseries_network
+    volumes:
+      - seaweed_filer_data:/data
+      - "vol_temp_seaweed_filer:/tmp"
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+    command: filer -master=seaweedfs-master:9333 -ip.bind=0.0.0.0
+    depends_on:
+      - seaweedfs-master
+      - seaweedfs-volume
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  seaweedfs-s3:
+    image: ${SEAWEEDFS_IMAGE}
+    hostname: seaweedfs-s3
+    container_name: seaweedfs-s3
+    read_only: true
+    user: "${TIMESERIES_UID}:${TIMESERIES_UID}"
+    security_opt:
+    - no-new-privileges
+    networks:
+      - timeseries_network
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+      - no_proxy=localhost,127.0.0.1,seaweedfs-master,seaweedfs-volume,seaweedfs-filer,seaweedfs-s3,172.18.0.0/16
+      # Comma-separated list of default buckets to create
+      - DEFAULT_S3_BUCKETS=dlstreamer-pipeline-results
+      # S3 credentials from .env file
+      - S3_STORAGE_USER=${S3_STORAGE_USERNAME}
+      - S3_STORAGE_PASS=${S3_STORAGE_PASSWORD}
+    entrypoint: ["/s3-init-buckets.sh"]
+    command: s3 -filer=seaweedfs-filer:8888 -ip.bind=0.0.0.0 -config=/tmp/s3_config.json
+    depends_on:
+      seaweedfs-filer:
+        condition: service_healthy
+      seaweedfs-master:
+        condition: service_started
+      seaweedfs-volume:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ./configs/seaweedfs-s3/seaweedfs_s3_config.json.template:/etc/seaweedfs/s3_config.json.template:ro
+      - ./configs/seaweedfs-s3/s3-init-buckets.sh:/s3-init-buckets.sh:ro
+      - "vol_temp_seaweed_s3:/tmp"
+
   coturn:
     image: coturn/coturn:4.7.0
     container_name: coturn
+    read_only: true
+    security_opt:
+    - no-new-privileges
     ports:
       - "${COTURN_UDP_PORT}:3478"
       - "${COTURN_UDP_PORT}:3478/udp"
@@ -447,6 +561,33 @@ volumes:
       device: tmpfs
 
   vol_nginx_tmpfs:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  seaweed_master_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  seaweed_volume_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  seaweed_filer_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  vol_temp_seaweed_filer:
+    name: "seaweed_filer_vol"
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  vol_temp_seaweed_s3:
+    name: "seaweed_s3_vol"
     driver: local
     driver_opts:
       type: tmpfs

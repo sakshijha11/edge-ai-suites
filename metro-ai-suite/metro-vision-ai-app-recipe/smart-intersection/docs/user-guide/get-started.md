@@ -11,10 +11,10 @@ The Smart Intersection Sample Application is a modular sample application design
 By following this guide, you will learn how to:
 - **Set up the sample application**: Use Docker Compose to quickly deploy the application in your environment.
 - **Run a predefined pipeline**: Execute a sample pipeline to see real-time transportation monitoring and object detection in action.
-- **Access the application's features and user interfaces**: Explore the Scenescape Web UI, Grafana dashboard, Node-RED interface, and DL Streamer Pipeline Server to monitor, analyze and customize workflows.
+- **Access the application's features and user interfaces**: Explore the Intel® SceneScape Web UI, Grafana dashboard, Node-RED interface, and DL Streamer Pipeline Server to monitor, analyze and customize workflows.
 
 ## Prerequisites
-- Verify that your system meets the [minimum requirements](./system-requirements.md).
+- Verify that your system meets the [minimum requirements](./get-started/system-requirements.md).
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
 - Enable running docker without "sudo": [Post Install](https://docs.docker.com/engine/install/linux-postinstall/)
 - Install Git: [Installing Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
@@ -47,9 +47,19 @@ By following this guide, you will learn how to:
      ./install.sh smart-intersection
      ```
 
+> **Note:** For environments requiring a specific host IP address (such as when using Edge
+> Manageability Toolkit or deploying across different network interfaces), you can explicitly
+> specify the IP address (Replace `<HOST_IP>` with your target IP address.):
+> `./install.sh smart-intersection <HOST_IP>`
+
 ## Run the Application
 
 1. **Start the Application**:
+   - Export admin password as environment variable:
+     ```bash
+     export SUPASS=$(cat ./smart-intersection/src/secrets/supass)
+     ```
+
    - Download container images with Application microservices and run with Docker Compose:
      ```bash
      docker compose up -d
@@ -70,8 +80,8 @@ By following this guide, you will learn how to:
      - Grafana Dashboard
      - DL Streamer Pipeline Server
      - MQTT Broker
-     - Node-RED (for applications without Scenescape)
-     - Scenescape services (for Smart Intersection only)
+     - Node-RED (for applications without Intel® SceneScape)
+     - Intel® SceneScape services (for Smart Intersection only)
 
      </details>
 
@@ -84,25 +94,24 @@ By following this guide, you will learn how to:
    - Check under the Dashboards section for the application-specific preloaded dashboard.
    - **Expected Results**: The dashboard displays real-time video streams with AI overlays and detection metrics.
 
-
 ## **Access the Application and Components** ##
 
 ### **Application UI** ###
 
-Open a browser and go to the following endpoints to access the application. Use `<actual_ip>` instead of `localhost` for external access:
+Open a browser and go to the following endpoints to access the application. Use `<actual_ip>`
+instead of `localhost` for external access:
 
-> **Notes**
+> **Note:**
 > - All services are accessed through the nginx reverse proxy at `https://localhost` with appropriate paths.
 > - For passwords stored in files (e.g., `supass` or `influxdb2-admin-token`), refer to the respective secret files in your deployment under ./src/secrets (Docker) or chart/files/secrets (Helm).
 > - Since the application uses HTTPS with self-signed certificates, your browser may display a certificate warning. For the best experience, use **Google Chrome** and accept the certificate.
-
 
 - **URL**: [https://localhost](https://localhost)
 - **Log in with credentials**:
     - **Username**: `admin`
     - **Password**: Stored in `supass`. (Check `./smart-intersection/src/secrets/supass`)
 
-> **Notes**:
+> **Note**:
 > - After starting the application, wait approximately 1 minute for the MQTT broker to initialize. You can confirm it is ready when green arrows appear for MQTT in the application interface. Since the application uses HTTPS, your browser may display a self-signed certificate warning. For the best experience, use **Google Chrome**.
 
 ### **Grafana UI** ###
@@ -112,18 +121,16 @@ Open a browser and go to the following endpoints to access the application. Use 
     - **Password**: `admin` (You will be prompted to change it on first login.)
 
 ### **InfluxDB UI** ###
-- **URL**: [https://localhost/influxdb/](https://localhost/influxdb/) *(Recommended for API access only since InfluxDB has limited support for sub-path proxying)*
-- **Alternative URL**: Direct access at `http://localhost:8086` *(Recommended for full UI functionality)*
+- **URL**: [http://localhost:8086](http://localhost:8086)
 - **Log in with credentials**:
     - **Username**: `<your_influx_username>` (Check `./smart-intersection/src/secrets/influxdb2/influxdb2-admin-username`)
     - **Password**: `<your_influx_password>` (Check `./smart-intersection/src/secrets/influxdb2/influxdb2-admin-password`).
-
 
 ### **NodeRED UI** ###
 - **URL**: [https://localhost/nodered/](https://localhost/nodered/)
 
 ### **DL Streamer Pipeline Server** ###
-- **REST API**: [https://localhost/api/pipelines/status/](https://localhost/api/pipelines/status)
+- **REST API**: [https://localhost/api/pipelines/status](https://localhost/api/pipelines/status)
   - **Check Pipeline Status**:
     ```bash
     curl -k https://localhost/api/pipelines/status
@@ -132,9 +139,9 @@ Open a browser and go to the following endpoints to access the application. Use 
 ## Verify the Application
 
 - **Fused object tracks**: In Scene Management UI, click on the Intersection-Demo card to navigate to the Scene. On the Scene page, you will see fused tracks moving on the map. You will also see greyed out frames from each camera. Toggle the "Live View" button to see the incoming camera frames. The object detections in the camera feeds will correlate to the tracks on the map.
-      ![Intersection Scene Homepage](_images/scenescape.png)
+      ![Intersection Scene Homepage](./_assets/scenescape.png)
 - **Grafana Dashboard**: In Grafana UI, observe aggregated analytics of different regions of interests in the grafana dashboard. After navigating to Grafana home page, click on "Dashboards" and click on item "Anthem-ITS-Data".
-      ![Intersection Grafana Dashboard](_images/grafana.png)
+      ![Intersection Grafana Dashboard](./_assets/grafana.png)
 
 ## **Stop the Application**:
   - To stop the application microservices, use the following command:
@@ -146,9 +153,20 @@ Open a browser and go to the following endpoints to access the application. Use 
 
 Choose one of the following methods to deploy the Smart Intersection Sample Application:
 
-- **[Deploy Using Helm](./how-to-deploy-helm.md)**: Use Helm to deploy the application to a Kubernetes cluster for scalable and production-ready deployments.
+- **[Deploy Using Helm](./get-started/deploy-with-helm.md)**: Use Helm to deploy the application to a Kubernetes cluster for scalable and production-ready deployments.
 
 ## Resources
 
-- [Troubleshooting Guide](./support.md): Find detailed steps to resolve common issues during deployments.
-- [DL Streamer Pipeline Server](https://docs.edgeplatform.intel.com/dlstreamer-pipeline-server/3.0.0/user-guide/Overview.html)
+- [Troubleshooting](./troubleshooting.md): Find detailed steps to resolve common issues during deployments.
+- [DL Streamer Pipeline Server](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/index.html): Intel microservice based on Python for video ingestion and deep learning inferencing functions.
+- [Intel® SceneScape](https://docs.openedgeplatform.intel.com/dev/scenescape/index.html): Intel Scene-based AI software framework.
+
+<!--hide_directive
+:::{toctree}
+:hidden:
+
+get-started/system-requirements.md
+get-started/deploy-with-helm.md
+
+:::
+hide_directive-->

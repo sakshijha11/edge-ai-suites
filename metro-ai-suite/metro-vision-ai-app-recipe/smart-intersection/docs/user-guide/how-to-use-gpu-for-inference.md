@@ -5,7 +5,7 @@ Machine with GPU is available
 
 ## Configure and deploy GPU pipelines
 
-In `edge-ai-suites/metro-ai-suite/metro-vision-ai-app-recipe/smart-intersection/src/dlstreamer-pipeline-server/config.json` the following GPU pipelines are available. Set `"auto_start": true` for each of them. 
+In `edge-ai-suites/metro-ai-suite/metro-vision-ai-app-recipe/smart-intersection/src/dlstreamer-pipeline-server/config.json` the following GPU pipelines are available. Set `"auto_start": true` for each of them.
 - intersection-cam1-gpu
 - intersection-cam2-gpu
 - intersection-cam3-gpu
@@ -19,3 +19,5 @@ Also, set `"auto_start": false` for the other pipelines in the same configuratio
 
 Start the application with:
 `docker compose up -d`
+
+> **Note:** If you have multiple GPUs (integrated/discrete), please follow the [GPU Device Selection](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/dev_guide/gpu_device_selection.html) DL Streamer document for selecting the GPU render device of your choice for VA codecs plugins.

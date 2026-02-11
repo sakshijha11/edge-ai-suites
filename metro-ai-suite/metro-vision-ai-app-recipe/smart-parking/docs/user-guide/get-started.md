@@ -1,7 +1,8 @@
-
 # Get Started
 
-The Smart Parking application uses AI-driven video analytics to optimize parking management. It provides a modular architecture that integrates seamlessly with various input sources and leverages AI models to deliver accurate and actionable insights.
+The Smart Parking application uses AI-driven video analytics to optimize parking management.
+It provides a modular architecture that integrates seamlessly with various input sources and
+leverages AI models to deliver accurate and actionable insights.
 
 By following this guide, you will learn how to:
 - **Set up the sample application**: Use Docker Compose to quickly deploy the application in your environment.
@@ -9,7 +10,8 @@ By following this guide, you will learn how to:
 - **Access the application's features and user interfaces**: Explore the Grafana dashboard, Node-RED interface, and DL Streamer Pipeline Server to monitor, analyze and customize workflows.
 
 ## Prerequisites
-- Verify that your system meets the [minimum requirements](./system-requirements.md).
+
+- Verify that your system meets the [minimum requirements](./get-started/system-requirements.md).
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
 
 <!--
@@ -40,19 +42,9 @@ By following this guide, you will learn how to:
      ./install.sh smart-parking
      ```
 
-    <details>
-    <summary>
-    Specify Custom Host IP Address (Advanced Configuration)
-    </summary>
-
-    For environments requiring a specific host IP address (such as when using Edge Manageability Toolkit or deploying across different network interfaces), you can explicitly specify the IP address:
-
-    ```bash
-    ./install.sh smart-parking <HOST_IP>
-    ```
-    Replace `<HOST_IP>` with your target IP address.
-
-    </details>
+> **Note:** For environments requiring a specific host IP address (such as when using Edge Manageability
+> Toolkit or deploying across different network interfaces), you can explicitly specify the
+> IP address : `./install.sh smart-parking <HOST_IP>` (replace `<HOST_IP>` with your target IP address).
 
 ## Run the Application
 
@@ -77,8 +69,8 @@ By following this guide, you will learn how to:
      - Grafana Dashboard
      - DL Streamer Pipeline Server
      - MQTT Broker
-     - Node-RED (for applications without Scenescape)
-     - Scenescape services (for Smart Intersection only)
+     - Node-RED (for applications without Intel® SceneScape)
+     - Intel® SceneScape services (for Smart Intersection only)
 
      </details>
 
@@ -88,21 +80,21 @@ By following this guide, you will learn how to:
      ```bash
      ./sample_start.sh
      ```
-
+   - To check the status of the pipelines:
+      ```bash
+      ./sample_status.sh
+      ```
      <details>
      <summary>
-     Check Status and Stop pipelines
+     Stop pipelines
      </summary>
-
-     - To check the status:
-       ```bash
-       ./sample_status.sh
-       ```
 
      - To stop the pipelines without waiting for video streams to finish replay:
        ```bash
        ./sample_stop.sh
        ```
+      > **Note:** This will stop all the pipelines and the streams. **DO NOT** run this if
+      > you want to see smart parking detection.
      </details>
 
 3. **View the Application Output**:
@@ -114,45 +106,56 @@ By following this guide, you will learn how to:
    - Check under the Dashboards section for the application-specific preloaded dashboard.
    - **Expected Results**: The dashboard displays real-time video streams with AI overlays and detection metrics.
 
-## **Access the Application and Components** ##
+## Access the Application and Components
 
-### **Nginx Dashboard** ###
-- **URL**: [https://localhost](https://localhost)
+### **Nginx Dashboard**
+- **URL**: `https://localhost`
 
-### **Grafana UI** ###
+### **Grafana UI**
 
-- **URL**: [https://localhost/grafana](https://localhost/grafana)
+- **URL**: `https://localhost/grafana`
 - **Log in with credentials**:
     - **Username**: `admin`
     - **Password**: `admin` (You will be prompted to change it on first login.)
 - In Grafana UI, the dashboard displays the detected cars in the parking lot.
-      ![Grafana Dashboard](_images/grafana-smart-parking.jpg)
+      ![Grafana Dashboard](./_assets/grafana-smart-parking.jpg)
 
 ### **NodeRED UI** ###
-- **URL**: [https://localhost/nodered/](https://localhost/nodered/)
+- **URL**: `https://localhost/nodered/`
 
 ### **DL Streamer Pipeline Server** ###
-- **REST API**: [https://localhost/api/pipelines](https://localhost/api/pipelines)
+- **REST API**: `https://localhost/api/pipelines`
   -   - **Check Pipeline Status**:
     ```bash
     curl -k https://localhost/api/pipelines
     ```
-- **WebRTC**: [https://localhost/mediamtx/object_detection_1/](https://localhost/mediamtx/object_detection_1/)
+- **WebRTC**: `https://localhost/mediamtx/object_detection_1/`
 
 
-## **Stop the Application**:
+## **Stop the Application**
 
 - To stop the application microservices, use the following command:
   ```bash
   docker compose down
   ```
 
-## Other Deployment Option
+## Other Deployment Options
 
-Choose one of the following methods to deploy the Smart Parking Sample Application:
-
-- **[Deploy Using Helm](./how-to-deploy-with-helm.md)**: Use Helm to deploy the application to a Kubernetes cluster for scalable and production-ready deployments.
+- [Deploy Using Helm](./get-started/deploy-with-helm.md): Use Helm to deploy the application to a Kubernetes cluster for scalable and production-ready deployments.
+- [Deploy with Edge Orchestrator](./get-started/deploy-with-edge-orchestrator.md): Use a simplified
+edge application deployment process.
 
 ## Supporting Resources
-- [Troubleshooting Guide](./support.md): Find detailed steps to resolve common issues during deployments.
-- [DL Streamer Pipeline Server](https://docs.edgeplatform.intel.com/dlstreamer-pipeline-server/3.0.0/user-guide/Overview.html)
+- [Troubleshooting](./troubleshooting.md): Find detailed steps to resolve common issues during deployments.
+- [DL Streamer Pipeline Server](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/index.html): Intel microservice based on Python for video ingestion and deep learning inferencing functions.
+
+<!--hide_directive
+:::{toctree}
+:hidden:
+
+get-started/system-requirements.md
+get-started/deploy-with-helm.md
+get-started/deploy-with-edge-orchestrator.md
+
+:::
+hide_directive-->

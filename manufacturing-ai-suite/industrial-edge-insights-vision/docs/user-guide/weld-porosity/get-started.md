@@ -1,11 +1,11 @@
 # Get Started
 
--   **Time to Complete:** 30 minutes
--   **Programming Language:**  Python 3
+- **Time to Complete:** 30 minutes
+- **Programming Language:**  Python 3
 
 ## Prerequisites
 
-- [System Requirements](system-requirements.md)
+- [System Requirements](./get-started/system-requirements.md)
 
 ## Set up the application
 
@@ -25,10 +25,10 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
     cp .env_weld_porosity_classification .env
     ```
 
-3.  Edit the `HOST_IP`, `MTX_WEBRTCICESERVERS2_0_USERNAME` and `MTX_WEBRTCICESERVERS2_0_PASSWORD` environment variables in `.env` file, as follows:
+3.  Edit the below mentioned environment variables in `.env` file, as follows:
 
     ```bash
-    HOST_IP=<HOST_IP>   # IP address of server where DLStreamer Pipeline Server is running.
+    HOST_IP=<HOST_IP>   # IP address of server where DL Streamer Pipeline Server is running.
 
     MR_PSQL_PASSWORD=  #PostgreSQL service & client adapter e.g. intel1234
 
@@ -39,7 +39,7 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
     MTX_WEBRTCICESERVERS2_0_PASSWORD=<password>
 
     # application directory
-    SAMPLE_APP=env_weld_porosity_classification
+    SAMPLE_APP=weld-porosity
     ```
 
 4.  Install pre-requisites. Run with sudo if needed.
@@ -109,11 +109,11 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
     ./sample_start.sh -p weld_porosity_classification
     ```
 
-    This command will look for the payload for the pipeline specified in `-p` argument above, inside the `payload.json` file and launch the a pipeline instance in DLStreamer Pipeline Server. Refer to the table, to learn about different options available.
+    This command will look for the payload for the pipeline specified in `-p` argument above, inside the `payload.json` file and launch the a pipeline instance in DL Streamer Pipeline Server. Refer to the table, to learn about different options available.
 
     > **IMPORTANT**: Before you run `sample_start.sh` script, make sure that
     > `jq` is installed on your system. See the
-    > [troubleshooting guide](./troubleshooting-guide.md#unable-to-parse-json-payload-due-to-missing-jq-package)
+    > [troubleshooting guide](./troubleshooting.md#unable-to-parse-json-payload-due-to-missing-jq-package)
     > for more details.
 
     Output:
@@ -209,16 +209,28 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
 
     This will bring down the services in the application and remove any volumes.
 
-
 ## Further Reading
 
-- [Helm based deployment](how-to-deploy-using-helm-charts.md)
-- [MLOps using Model Registry](how-to-enable-mlops.md)
-- [Run multiple AI pipelines](how-to-run-multiple-ai-pipelines.md)
-- [Publish frames to S3 storage pipelines](how-to-run-store-frames-in-s3.md)
-- [View telemetry data in Open Telemetry](how-to-view-telemetry-data.md)
-- [Publish metadata to MQTT](how-to-start-mqtt-publisher.md)
+- [Deploy with Helm](./get-started/deploy-with-helm.md)
+- [Deploy with Edge Orchestrator](./get-started/deploy-with-edge-orchestrator.md)
+- [MLOps using Model Registry](./how-to-guides/enable-mlops.md)
+- [Run multiple AI pipelines](./how-to-guides/run-multiple-ai-pipelines.md)
+- [Publish frames to S3 storage pipelines](./how-to-guides/store-frames-in-s3.md)
+- [View telemetry data in Open Telemetry](./how-to-guides/view-telemetry-data.md)
+- [Publish metadata to MQTT](./how-to-guides/start-mqtt-publisher.md)
 
 ## Troubleshooting
 
-- [Troubleshooting Guide](troubleshooting-guide.md)
+- [Troubleshooting](./troubleshooting.md)
+
+<!--hide_directive
+:::{toctree}
+:hidden:
+
+./get-started/system-requirements
+./get-started/environment-variables
+./get-started/deploy-with-helm
+./get-started/deploy-with-edge-orchestrator
+
+:::
+hide_directive-->

@@ -15,6 +15,7 @@ import os
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from pathlib import Path
+from components.va.media_service import MediaService
 
 
 logger = logging.getLogger(__name__)
@@ -38,11 +39,14 @@ def system_check():
 
 if __name__ == "__main__":
     
-    system_check()
+    #system_check()
     RuntimeConfig.ensure_config_exists()
     ensure_model()
     preload_models()
-    
+
+    media_service = MediaService()
+    media_service.launch_server()
+
     import uvicorn
     logger.info("App started, Starting Server...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)

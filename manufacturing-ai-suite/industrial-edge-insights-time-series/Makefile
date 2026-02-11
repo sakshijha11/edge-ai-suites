@@ -31,11 +31,6 @@ ifeq ($(origin ingestion_interval), undefined)
 ingestion_interval := "1s"
 endif
 
-# Assign default value to version and appVersion if not provided for helm deployment
-ifeq ($(origin version), undefined)
-version := "1.1.0-weekly"
-endif
-
 export SAMPLE_APP
 
 # Example: Run a shell if-else block before starting containers
@@ -63,7 +58,8 @@ ENV_FILE = ./.env
 
 include $(ENV_FILE)
 export $(shell sed 's/=.*//' $(ENV_FILE))
-
+DRI_MOUNT_PATH := $(shell [ -d /dev/dri ] && [ -n "$$(ls -A /dev/dri 2>/dev/null)" ] && echo "/dev/dri" || echo "/dev/null")
+export DRI_MOUNT_PATH
 
 # Build Docker containers
 .PHONY: build
@@ -130,10 +126,15 @@ up_mqtt_ingestion: check_env_variables down
 		export TELEGRAF_CONFIG_PATH=/etc/telegraf/Telegraf_multi_stream.conf; \
     fi; \
 	echo "Starting Docker containers..."; \
+	echo "GPU device path set to: $(DRI_MOUNT_PATH) based on its existence"; \
 	if [ $(INCLUDE) = 'validation' ]; then \
 		$(DOCKER_COMPOSE) -f $(DOCKER_COMPOSE_FILE) -f $(DOCKER_COMPOSE_VALIDATION_FILE) up --scale ia-opcua-server=0 -d; \
 	else \
-		$(DOCKER_COMPOSE) up --scale ia-mqtt-publisher=$(num_of_streams) --scale ia-opcua-server=0 -d; \
+		for i in $$(seq 1 $(num_of_streams)); do \
+			echo "Starting ia-mqtt-publisher instance $$i for SAMPLE_APP: $$SAMPLE_APP";\
+			$(DOCKER_COMPOSE) run -d --name ia-mqtt-publisher-$$i -e INSTANCE_ID=$$i ia-mqtt-publisher; \
+		done; \
+		$(DOCKER_COMPOSE) up --scale ia-opcua-server=0 -d $(shell $(DOCKER_COMPOSE) config --services | grep -v ia-mqtt-publisher); \
 	fi;
 
 # Run Docker containers
@@ -149,6 +150,7 @@ up_opcua_ingestion: check_env_variables down
     fi; \
 	export TELEGRAF_INPUT_PLUGIN=$$(if [ $(INCLUDE) = 'validation' ]; then echo "opcua:net:cpu:disk:docker:diskio:kernel:mem:processes:swap:system"; else echo "opcua"; fi); \
 	echo "Starting Docker containers..."; \
+	echo "GPU device path set to: $(DRI_MOUNT_PATH) based on its existence"; \
 	if [ $(INCLUDE) = 'validation' ]; then \
 		$(DOCKER_COMPOSE) -f $(DOCKER_COMPOSE_FILE) -f $(DOCKER_COMPOSE_VALIDATION_FILE) up --scale ia-mqtt-publisher=0 -d ;\
 	else \
@@ -210,6 +212,7 @@ push_images: build
 gen_helm_charts:
 	@echo "Generating Helm packages"
 	@echo "Packaging Helm chart for ${SAMPLE_APP}"
+	$(eval version := $(shell if [ -n "$(WEEKLY_BUILD_DATE)" ] && [ "$(WEEKLY_BUILD_DATE)" != '""' ]; then echo "2026.0.0-$(WEEKLY_BUILD_DATE)-weekly"; else echo "2026.0.0"; fi))
 	@cp -f configs/grafana/dashboards/*.yml helm/
 	@cp -f apps/${SAMPLE_APP}/grafana-dashboard.json helm/
 	@cp -f configs/influxdb/config/*.conf helm/
@@ -227,7 +230,8 @@ gen_helm_charts:
 	@sed -i "s/version: .*/version: ${version}/" "helm/Chart.yaml"
 	@sed -i "s/appVersion: .*/appVersion: \"${version}\"/" "helm/Chart.yaml"
 	@sed -i "s/SAMPLE_APP: .*/SAMPLE_APP: ${SAMPLE_APP}/" "helm/values.yaml"
-	@echo "Helm packages generated"
+	@sed -i "s/weekly_build_date: .*/weekly_build_date: \"$(WEEKLY_BUILD_DATE)\"/" "helm/values.yaml"
+	@echo "Helm packages generated with version: ${version}"
 
 # Help
 .PHONY: help
@@ -256,7 +260,6 @@ help:
 	@echo "      Example: make push_images DOCKER_REGISTRY=myregistry"
 	@echo "  make gen_helm_charts              - Generate Helm packages for the selected sample app"
 	@echo "      Mandatory: app (default: wind-turbine-anomaly-detection)"
-	@echo "      Optional: version (default: 1.1.0-weekly)"
-	@echo "      Example: make gen_helm_charts app=weld-anomaly-detection version=1.2.0"
+	@echo "      Example: make gen_helm_charts app=weld-anomaly-detection"
 	@echo "  make help                         - Display this help message"
 	@echo "      No parameters required."

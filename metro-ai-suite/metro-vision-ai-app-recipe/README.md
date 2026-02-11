@@ -5,7 +5,7 @@
 The Metro Vision AI App Recipe suite provides an integrated AI-powered solution for modern urban traffic management and monitoring. This comprehensive platform combines multiple transportation-focused applications built on a unified architecture, enabling cities and organizations to deploy intelligent transportation systems efficiently.
 
 **Available Applications:**
-- **Smart Intersection Management** (includes optional Scenescape components) - AI-driven traffic flow optimization and intersection monitoring
+- **Smart Intersection Management** (includes optional Intel® SceneScape components) - AI-driven traffic flow optimization and intersection monitoring
 - **Loitering Detection** - Real-time detection of loitering behavior in transportation hubs
 - **Smart Parking** - Automated parking space monitoring and management
 
@@ -19,7 +19,6 @@ The Metro Vision AI App Recipe suite provides an integrated AI-powered solution 
 - **Dashboard Monitoring**: Real-time visualization of traffic metrics and system performance
 - **Flexible Deployment**: Support for various camera types and video sources
 - **No-Code Configuration**: Set up complex rules and workflows through intuitive interfaces
-
 
 ## How It Works
 
@@ -52,11 +51,11 @@ The Metro Vision AI App Recipe architecture is designed to facilitate seamless i
 
 #### Optional Components
 
-- **Scenescape Management UI:** A web-based user interface for advanced scene configuration, camera calibration, and visual rule setup. Provides intuitive tools for defining detection zones, traffic lanes, and monitoring areas through a graphical interface.
+- **Intel® SceneScape Management UI:** A web-based user interface for advanced scene configuration, camera calibration, and visual rule setup. Provides intuitive tools for defining detection zones, traffic lanes, and monitoring areas through a graphical interface.
 
-- **Scenescape Controller:** The backend service that manages scene configurations, processes spatial analytics, and coordinates between the Management UI and the video analytics pipeline. Handles complex scene understanding and geometric transformations.
+- **Intel® SceneScape Controller:** The backend service that manages scene configurations, processes spatial analytics, and coordinates between the Management UI and the video analytics pipeline. Handles complex scene understanding and geometric transformations.
 
-- **Scenescape Database (PostgreSQL):** A robust relational database that stores scene configurations, camera metadata, calibration parameters, and historical analytics data. Ensures data persistence and enables complex queries for reporting and analysis.
+- **Intel® SceneScape Database (PostgreSQL):** A robust relational database that stores scene configurations, camera metadata, calibration parameters, and historical analytics data. Ensures data persistence and enables complex queries for reporting and analysis.
 
 - **InfluxDB:** A time-series database optimized for storing and querying high-frequency transportation metrics such as vehicle counts, traffic flow rates, speed measurements, and system performance data. Enables efficient historical analysis and trend monitoring.
 
@@ -75,32 +74,37 @@ The system is designed with professionals in mind, offering pre-configured pipel
 Key advantages include edge-based processing that reduces latency for time-critical traffic decisions, support for multiple video sources to cover complex intersections, and integration capabilities with existing traffic management systems through standard protocols and APIs.
 
 **Advanced Capabilities with Optional Components:**
-When deployed with the optional Scenescape components, the system provides enhanced spatial analytics capabilities including precise vehicle trajectory tracking, accurate speed measurement, and advanced zone-based analytics. The InfluxDB integration enables long-term trend analysis, capacity planning, and performance optimization based on historical traffic patterns.
+When deployed with the optional Intel® SceneScape components, the system provides enhanced spatial analytics capabilities including precise vehicle trajectory tracking, accurate speed measurement, and advanced zone-based analytics. The InfluxDB integration enables long-term trend analysis, capacity planning, and performance optimization based on historical traffic patterns.
 
 ## Use Cases
 
 ### Smart Intersection Management
+
 - Real-time traffic light optimization based on vehicle and pedestrian counts
 - Emergency vehicle detection and priority signal control
 - Pedestrian safety monitoring at crosswalks
 - Traffic violation detection and automated enforcement
 
 ### Loitering Detection
+
 - Security monitoring at transit stations and stops
 - Identification of suspicious behavior in hubs
 - Crowd management in high-traffic areas
 - Automated alerts for security personnel
 
 ### Smart Parking
+
 - Real-time parking space availability tracking
 - Automated payment and access control
 - Parking violation detection
 - Optimization of parking space utilization
 
-## To Get Started
-- [Smart Intersection](smart-intersection/docs/user-guide/Overview.md)
-- [Smart Parking](smart-parking/docs/user-guide/Overview.md)
-- [Loitering Detection](loitering-detection/docs/user-guide/Overview.md)
+## Get Started
 
-## To develop your own application
-- [Tutorial](docs/user-guide/tutorial-1.md)
+- [Smart Intersection](./smart-intersection/docs/user-guide/index.md)
+- [Smart Parking](./smart-parking/docs/user-guide/index.md)
+- [Loitering Detection](./loitering-detection/docs/user-guide/index.md)
+
+## Developing your own tolling application
+
+- [Tutorial](./docs/user-guide/tutorial-1.md)

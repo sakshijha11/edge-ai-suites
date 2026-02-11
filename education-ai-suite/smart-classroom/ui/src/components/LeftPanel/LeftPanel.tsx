@@ -1,10 +1,13 @@
+import { useState } from "react";
 import TranscriptsTab from "../Tabs/TranscriptsTab";
 import AISummaryTab from "../Tabs/AISummaryTab";
 import MindMapTab from "../Tabs/MindMapTab";
+import Timeline from "./Timeline"; // Add this import
 import "../../assets/css/LeftPanel.css";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { setActiveTab } from "../../redux/slices/uiSlice";
 import { useTranslation } from 'react-i18next';
+import VideoStream from "./VideoStream";
 
 const LeftPanel = () => {
   const dispatch = useAppDispatch();
@@ -15,8 +18,18 @@ const LeftPanel = () => {
   const mindmapLoading = useAppSelector((s) => s.ui.mindmapLoading);
   const { t } = useTranslation();
 
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  const handleToggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
   return (
-    <div className="left-panel">
+    <div className={`left-panel-container ${isFullScreen ? "fullscreen" : ""}`}>
+      <VideoStream isFullScreen={isFullScreen} onToggleFullScreen={handleToggleFullScreen} />
+
+      <Timeline />
+      
       <div className="tabs">
         <button
           className={activeTab === "transcripts" ? "active" : ""}

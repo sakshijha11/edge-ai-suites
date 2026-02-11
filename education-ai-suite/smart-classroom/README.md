@@ -5,13 +5,12 @@ The **Smart Classroom** project is a modular, extensible framework designed to p
 The main features are as follows:
 
 •	Audio transcription with ASR models (e.g., Whisper, Paraformer)\
+•	Speaker diarization is supported using Pyannote Audio models.
 •	Summarization using powerful LLMs (e.g., Qwen, LLaMA)\
 •	MindMap Generation using Mermaid.js for visual diagram rendering of the summary\
 •	Plug-and-play architecture for integrating new ASR and LLM models\
 •	API-first design ready for frontend integration\
-•	Extensible roadmap for real-time streaming, diarization, translation, and video analysis
-
-![Smart Classroom UI](./docs/user-guide/images/smart_classroom_ui.png)
+•	Video analysis
 
 ## Get Started 
 
@@ -19,6 +18,7 @@ To see the system requirements and other installations, see the following guides
 
 - [System Requirements](./docs/user-guide/system-requirements.md): Check the hardware and software requirements for deploying the application.
 - [Get Started](./docs/user-guide/get-started.md): Follow step-by-step instructions to set up the application.
+- [Application Flow](./docs/user-guide/application-flow.md): Check the flow of application.
 
 ## How It Works
 

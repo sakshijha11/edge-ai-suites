@@ -1,14 +1,36 @@
 import { typewriterStream } from '../utils/typewriterStream';
-import type { StreamEvent, StreamOptions } from './streamSimulator';
-export type ProjectConfig = { name: string; location: string; microphone: string };
-export type Settings = { projectName: string; projectLocation: string; microphone: string };
+import type { StreamEvent, StreamOptions, Segment, TranscriptChunk, FinalEvent } from './streamSimulator';
+import { store } from "../redux/store";
+import { 
+  setVideoStatus,
+  setVideoAnalyticsActive
+} from "../redux/slices/uiSlice";
+
+export type ProjectConfig = { 
+  name: string; 
+  location: string; 
+  microphone: string; 
+  frontCamera?: string; 
+  backCamera?: string; 
+  boardCamera?: string 
+};
+
+export type Settings = { 
+  projectName: string; 
+  projectLocation: string; 
+  microphone: string; 
+  frontCamera?: string; 
+  backCamera?: string; 
+  boardCamera?: string 
+};
+
 export type SessionMode = 'record' | 'upload';
 export type StartSessionRequest = { projectName: string; projectLocation: string; microphone: string; mode: SessionMode };
 export type StartSessionResponse = { sessionId: string };
 
 const env = (import.meta as any).env ?? {};
 const BASE_URL: string = env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-const HEALTH_TIMEOUT_MS = 10000;
+const HEALTH_TIMEOUT_MS = 5000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -49,6 +71,9 @@ export async function getSettings(): Promise<Settings> {
       projectName: cfg.name ?? '',
       projectLocation: cfg.location ?? '',
       microphone: cfg.microphone ?? '',
+      frontCamera: cfg.frontCamera || '', 
+      backCamera: cfg.backCamera || '',   
+      boardCamera: cfg.boardCamera || ''  
     };
   });
 }
@@ -59,6 +84,9 @@ export async function saveSettings(settings: Settings): Promise<ProjectConfig> {
       name: settings.projectName,
       location: settings.projectLocation,
       microphone: settings.microphone,
+      frontCamera: settings.frontCamera,
+      backCamera: settings.backCamera,
+      boardCamera: settings.boardCamera
     };
     console.log('Sending payload to /project:', payload);
     const res = await fetch(`${BASE_URL}/project`, {
@@ -69,7 +97,6 @@ export async function saveSettings(settings: Settings): Promise<ProjectConfig> {
     if (!res.ok) throw new Error(`Failed to save project config: ${res.status}`);
     return (await res.json()) as ProjectConfig;
   });
-
 }
 
 // Compatibility aliases (use getSettings/saveSettings internally)
@@ -85,7 +112,6 @@ export async function updateProjectConfig(config: ProjectConfig): Promise<Projec
     return saveSettings({ projectName: config.name, projectLocation: config.location, microphone: config.microphone });
   });
 }
-
 
 export async function startSession(req: StartSessionRequest): Promise<StartSessionResponse> {
   return safeApiCall(async () => {
@@ -111,71 +137,90 @@ return res.json();
 });
 }
 
-
 export async function* streamTranscript(
   audioPath: string,
+  sessionId: string,
   opts: StreamOptions = {}
 ): AsyncGenerator<StreamEvent> {
- 
-  // Prepare request body based on whether it's microphone or file
   const requestBody =
     audioPath === "MICROPHONE" || audioPath === ""
-      ? {
-          audio_filename: "",
-          source_type: "microphone",
-        }
-      : {
-          audio_filename: audioPath,
-          source_type: "audio_file",
-        };
- 
-  console.log("Sending transcription request:", requestBody);
- 
-  const res = await fetch(`${BASE_URL}/transcribe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(requestBody),
-    signal: opts.signal,
-    cache: "no-store",
-    keepalive: true,
-  });
- 
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("Transcription request failed:", errorText);
-    throw new Error(`Failed to start transcription: ${res.status} - ${errorText}`);
+      ? { audio_filename: "", source_type: "microphone" }
+      : { audio_filename: audioPath, source_type: "audio_file" };
+
+  let res: Response;
+
+  try {
+    res = await fetch(`${BASE_URL}/transcribe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-session-id": sessionId
+      },
+      body: JSON.stringify(requestBody),
+      signal: opts.signal,
+      cache: "no-store"
+    });
+  } catch (err) {
+    console.error("❌ Network failure:", err);
+    yield { type: "error", message: "Network error. Please retry." };
+    yield { type: "done" };
+    return;
   }
-  const sessionId = res.headers.get("x-session-id");
-  console.log("Received sessionId from header:", sessionId);
-  if (opts.onSessionId) opts.onSessionId(sessionId);
+
+  if (res.status === 429) {
+    console.warn("⏳ Rate limited");
+    yield { type: "error", message: "Too many requests. Please wait a moment." };
+    yield { type: "done" };
+    return;
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ Transcription failed:", res.status, text);
+    yield { type: "error", message: `Transcription failed (${res.status})` };
+    yield { type: "done" };
+    return;
+  }
+
   const reader = res.body?.getReader();
+  if (!reader) {
+    yield { type: "error", message: "Streaming not supported" };
+    yield { type: "done" };
+    return;
+  }
+
   const decoder = new TextDecoder();
   let buffer = "";
-  while (reader) {
+
+  while (true) {
     const { value, done } = await reader.read();
     if (done) break;
+
     buffer += decoder.decode(value, { stream: true });
-    let lines = buffer.split("\n");
+    const lines = buffer.split("\n");
     buffer = lines.pop() || "";
- 
+
     for (const line of lines) {
       if (!line.trim()) continue;
- 
-      const chunk = JSON.parse(line);
-      const text = chunk.text || "";
-      for await (const token of typewriterStream(
-        text,
-        opts.tokenDelayMs ?? 0,   
-        opts.signal
-      )) {
-        yield { type: "transcript", token };
+      try {
+        const json = JSON.parse(line);
+        if (json.event === "final") {
+          yield { type: "final", data: json };
+          continue;
+        }
+        if ("segments" in json || "text" in json) {
+          yield { type: "transcript_chunk", data: json };
+          continue;
+        }
+      } catch {
+        yield { type: "transcript", token: line };
       }
     }
   }
- 
+
   yield { type: "done" };
 }
-
 
 export async function* streamSummary(sessionId: string, opts: StreamOptions = {}): AsyncGenerator<StreamEvent> {
   const res = await fetch(`${BASE_URL}/summarize`, {
@@ -252,6 +297,7 @@ export async function getResourceMetrics(sessionId: string): Promise<any> {
       return {
         cpu_utilization: [],
         gpu_utilization: [],
+        npu_utilization: [],
         memory: [],
         power: []
       };
@@ -261,6 +307,7 @@ export async function getResourceMetrics(sessionId: string): Promise<any> {
     return text ? JSON.parse(text) : {
       cpu_utilization: [],
       gpu_utilization: [],
+      npu_utilization: [],
       memory: [],
       power: []
     };
@@ -288,6 +335,178 @@ export async function getConfigurationMetrics(sessionId: string): Promise<any> {
     const text = await res.text();
     return text ? JSON.parse(text) : { configuration: {}, performance: {} };
   });
+}
+
+export const startVideoAnalytics = async (
+  requests: Array<{
+    pipeline_name: string;
+    source: string;
+  }>,
+  sessionId: string
+): Promise<any> => {
+  return safeApiCall(async () => {
+    const response = await fetch(`${BASE_URL}/start-video-analytics-pipeline`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-ID': sessionId,
+      },
+      body: JSON.stringify(requests),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to start video analytics: ${response.status}`);
+    }
+
+    return response.json();
+  });
+};
+
+export const stopVideoAnalytics = async (
+  requests: Array<{
+    pipeline_name: string;
+    source?: string;
+  }>,
+  sessionId: string
+): Promise<any> => {
+  return safeApiCall(async () => {
+    const response = await fetch(`${BASE_URL}/stop-video-analytics-pipeline`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-ID': sessionId,
+      },
+      body: JSON.stringify(requests),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to stop video analytics: ${response.status}`);
+    }
+
+    return response.json();
+  });
+};
+
+export const startVideoAnalyticsPipeline = startVideoAnalytics;
+
+export async function getClassStatistics(
+  sessionId: string,
+  onData: (data: {
+    student_count: number;
+    stand_count: number;
+    raise_up_count: number;
+    stand_reid: { student_id: number; count: number }[];
+  }) => void,
+  onError?: (error: Error) => void
+): Promise<() => void> {
+  return safeApiCall(async () => {
+    const response = await fetch(`${BASE_URL}/class-statistics`, {
+      method: 'GET',
+      headers: {
+        'x-session-id': sessionId,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No reader available');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const processStream = async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete JSON objects
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line);
+                if (data.error) {
+                  onError?.(new Error(data.error));
+                } else {
+                  onData(data);
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse JSON:', line, parseError);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        onError?.(error as Error);
+      } finally {
+        reader.releaseLock();
+      }
+    };
+
+    processStream();
+
+    // Return cleanup function
+    return () => {
+      reader.cancel();
+    };
+  });
+}
+
+export async function* monitorVideoAnalyticsPipelines(
+  sessionId: string,
+  signal?: AbortSignal
+): AsyncGenerator<any, void, unknown> {
+
+  console.log("🎥 Starting video pipeline monitor:", sessionId);
+
+  const response = await fetch(
+    `${BASE_URL}/monitor-video-analytics-pipeline`,
+    {
+      method: "GET",
+      headers: {
+        "x-session-id": sessionId
+      },
+      signal
+    }
+  );
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Monitor failed: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) return;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      yield JSON.parse(line);
+    }
+  }
 }
 
 export async function getPlatformInfo(): Promise<any> {
@@ -329,12 +548,13 @@ export async function stopMicrophone(sessionId: string): Promise<{ status: strin
   });
 }
 
-export async function startMicrophone(): Promise<{ status: string; message: string; sessionId?: string }> {
+export async function startMicrophone(sessionId: string): Promise<{ status: string; message: string }> {
   const res = await fetch(`${BASE_URL}/transcribe`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
+      "x-session-id": sessionId, // Use provided session ID
       "x-source-type": "microphone"
     },
     body: JSON.stringify({
@@ -351,12 +571,7 @@ export async function startMicrophone(): Promise<{ status: string; message: stri
     throw new Error(`Failed to start microphone: ${res.status}`);
   }
 
-  // ✅ Extract X-Session-ID from headers
-  const sessionId = res.headers.get("x-session-id") || undefined;
-  if (sessionId) {
-    localStorage.setItem("sessionId", sessionId);
-    console.log("🟢 Session ID saved:", sessionId);
-  }
+  console.log("🎙️ Microphone started with session ID:", sessionId);
 
   // ✅ Stream-safe handling: just confirm first chunk
   const reader = res.body?.getReader();
@@ -376,7 +591,62 @@ export async function startMicrophone(): Promise<{ status: string; message: stri
 
   return {
     status: "recording",
-    message: "Microphone streaming started successfully.",
-    sessionId
+    message: "Microphone streaming started successfully."
   };
+}
+
+export async function createSession(): Promise<{ sessionId: string }> {
+  return safeApiCall(async () => {
+    const res = await fetch(`${BASE_URL}/create-session`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+ 
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('❌ Failed to create session:', errorText);
+      throw new Error(`Failed to create session: ${res.status}`);
+    }
+ 
+    const data = await res.json();
+    const sessionId = data['session-id'];
+    console.log('🟢 Session ID created:', sessionId);
+ 
+    return { sessionId };
+  });
+}
+
+export async function startMonitoring(sessionId: string): Promise<{ status: string; message: string }> {
+  return safeApiCall(async () => {
+    console.log('📊 Starting monitoring for session:', sessionId);
+    const res = await fetch(`${BASE_URL}/start-monitoring`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-session-id': sessionId  // Pass session ID in header like transcription
+      },
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Failed to start monitoring: ${res.status} - ${errorText}`);
+    }
+    return await res.json();
+  });
+}
+
+export async function stopMonitoring(): Promise<{ status: string; message: string }> {
+  return safeApiCall(async () => {
+    console.log('🛑 Stopping monitoring');
+    const res = await fetch(`${BASE_URL}/stop-monitoring`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json'
+      },
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Failed to stop monitoring: ${res.status} - ${errorText}`);
+    }
+    return await res.json();
+  });
 }

@@ -46,14 +46,12 @@ services:
         condition: service_healthy
 
   feature-matching:
-    image: ${DOCKER_REGISTRY}intel/feature-matching:v1.1.0-RC1
+    image: ${DOCKER_REGISTRY}intel/feature-matching:v1.1.0
     container_name: ibvs-featurematching
     build:
       context: src/feature-matching
       dockerfile: Dockerfile
     read_only: true
-    tmpfs:
-    - /usr/src/app/static:uid=1999,gid=1999,mode=775
     environment:
       MILVUS_ENDPOINT: http://milvus-db:19530
       COLLECTION_NAME: my_image_collection
@@ -74,7 +72,7 @@ services:
       broker:
         condition: service_started
     volumes:
-      - image-data:/user/src/app/static
+      - image-data:/usr/src/app/static:rw
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 30s
@@ -83,7 +81,7 @@ services:
       start_period: 10s
     restart: on-failure:5
   streaming-pipeline:
-    image: ${DOCKER_REGISTRY}intel/streaming-pipeline:v1.1.0-RC1
+    image: ${DOCKER_REGISTRY}intel/streaming-pipeline:v1.1.0
     build:
       context: src/streaming-pipeline
       dockerfile: Dockerfile
@@ -174,9 +172,12 @@ services:
       - http_proxy=
       - https_proxy=
       - no_proxy=
+      # NPU related environment variables
+      - ZE_ENABLE_ALT_DRIVERS=libze_intel_npu.so
     volumes:
       - "./src/dlstreamer-pipeline-server/configs/filter-pipeline/config.cpu.json:/home/pipeline-server/config.json"
       # - "./src/dlstreamer-pipeline-server/configs/filter-pipeline/config.gpu.json:/home/pipeline-server/config.json"
+      # - "./src/dlstreamer-pipeline-server/configs/filter-pipeline/config.npu.json:/home/pipeline-server/config.json"
       - "dlstreamer-pipeline-server-pipeline-root:/var/cache/pipeline_root:uid=1999,gid=1999"
       # - "../certificates:/MqttCerts:ro"
       # - "../Certificates/ssl_server/:/run/secrets/EdgeVideoAnalyticsMicroservice_Server:ro"
@@ -192,6 +193,8 @@ services:
       - "109"
       # render group ID for ubuntu 22.04 host OS
       - "110"
+      # render group ID for ubuntu 24.04 host OS
+      - "992"
     device_cgroup_rules:
       - 'c 189:* rmw'
       - 'c 209:* rmw'
@@ -203,7 +206,7 @@ services:
         condition: service_started
     restart: on-failure:5
   app:
-    image: ${DOCKER_REGISTRY}intel/image-based-video-search:v1.1.0-RC1
+    image: ${DOCKER_REGISTRY}intel/image-based-video-search:v1.1.0
     container_name: ibvs-app
     build:
       context: src/app

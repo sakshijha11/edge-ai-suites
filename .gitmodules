@@ -28,3 +28,20 @@
 [submodule "retail-ai-suite/order-accuracy"]
 	path = retail-ai-suite/order-accuracy
 	url = https://github.com/intel-retail/order-accuracy
+[submodule "robotics-ai-suite/pipelines/mpc-demo/ocs2_robotic_assets/ocs2_robotic_assets"]
+	path = robotics-ai-suite/pipelines/mpc-demo/ocs2_robotic_assets/ocs2_robotic_assets
+	url = https://github.com/leggedrobotics/ocs2_robotic_assets.git
+[submodule "robotics-ai-suite/pipelines/mpc-demo/mujoco_ros_utils/MujocoRosUtils"]
+	path = robotics-ai-suite/pipelines/mpc-demo/mujoco_ros_utils/MujocoRosUtils
+	url = https://github.com/isri-aist/MujocoRosUtils.git
+[submodule "robotics-ai-suite/pipelines/mpc-demo/ocs2/ocs2"]
+	path = robotics-ai-suite/pipelines/mpc-demo/ocs2/ocs2
+	url = https://github.com/leggedrobotics/ocs2.git
+[submodule "metro-ai-suite/smart-traffic-intersection-agent/deps/metro-vision"]
+	path = metro-ai-suite/smart-traffic-intersection-agent/deps/metro-vision
+	url = https://github.com/open-edge-platform/edge-ai-suites.git
+	branch = exp/smart-traffic-adapter
+  	shallow = true
+[submodule "health-and-life-sciences-ai-suite/multi_modal_patient_monitoring/services/mdpnp/mdpnp"]
+	path = health-and-life-sciences-ai-suite/multi_modal_patient_monitoring/services/mdpnp/mdpnp
+	url = https://github.com/mdpnp/mdpnp.git

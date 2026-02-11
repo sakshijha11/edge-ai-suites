@@ -9,25 +9,23 @@
 * VPP SDK
 
 ## Build docker image  
-1. Install VPPSDK and dependencies  
-```
-sudo -E wget -O- https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg | sudo tee /usr/share/keyrings/sed-archive-keyring.gpg > /dev/null
-echo "deb [signed-by=/usr/share/keyrings/sed-archive-keyring.gpg] https://eci.intel.com/sed-repos/$(source /etc/os-release && echo $VERSION_CODENAME) sed main" | sudo tee /etc/apt/sources.list.d/sed.list
-echo "deb-src [signed-by=/usr/share/keyrings/sed-archive-keyring.gpg] https://eci.intel.com/sed-repos/$(source /etc/os-release && echo $VERSION_CODENAME) sed main" | sudo tee -a /etc/apt/sources.list.d/sed.list
-sudo bash -c 'echo -e "Package: *\nPin: origin eci.intel.com\nPin-Priority: 1000" > /etc/apt/preferences.d/sed'
-sudo apt update
-sudo apt install intel-vppsdk
-
-sudo bash /opt/intel/vppsdk/install_vppsdk_dependencies.sh
-source /opt/intel/vppsdk/env.sh
-```
-2. Build docker image for reference application `bash build_sample.sh`  
+1. Build docker image for reference application `bash build_sample.sh`  
 Make sure docker is corrently installed and configured. 
+
+## Download the yolov8n_with_preprocess.xml model  
+1. Download and convert yolo model with [openvino notebook](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/yolov8-optimization/yolov8-object-detection.ipynb)
 
 ## Run docker container  
 1. Run `sudo init 3` switch to non-GUI mode
-2. Run a sample test in docker container : `bash run.sh`  
+2. Run a sample test in docker container : `bash run.sh yolov8n_with_preprocess.xml`  
+To exit the program, you need to open another terminal window and stop the container using docker stop.
 
-## Run docker compose
+## Run docker compose 
 1. Run `sudo init 3` switch to non-GUI mode
-2. Run `bash ./startup.sh`
+2. Run `bash ./startup.sh yolov8n_with_preprocess.xml`
+
+## Uninstall docker image
+1. Run `docker rmi -f $(docker images --format "{{.Repository}}:{{.Tag}}" | grep 'vppsample')` remove all vppsample docker images
+
+## Caution
+This container image is intended for demo purposes only and not intended for production use. To receive expanded security maintenance from Canonical on the Ubuntu base layer, you may follow the [how-to guide to enable Ubuntu Pro in a Dockerfile](https://documentation.ubuntu.com/pro-client/en/docs/howtoguides/enable_in_dockerfile) which will require the image to be rebuilt.
