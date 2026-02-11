@@ -98,6 +98,7 @@ const servicesSlice = createSlice({
         if (payload.HR !== undefined) workload.latestData.HR = payload.HR;
         if (payload.CO2_ET !== undefined) workload.latestData.CO2_ET = payload.CO2_ET;
         if (payload.BP_DIA !== undefined) workload.latestData.BP_DIA = payload.BP_DIA;
+        if (payload.BP_SIA !== undefined) workload.latestData.BP_SIA = payload.BP_SIA;
         
         // Store waveform (prioritize ECG_LEAD_II for display)
         if (payload.waveform && Array.isArray(payload.waveform)) {
@@ -106,7 +107,7 @@ const servicesSlice = createSlice({
         }
         
         console.log(`[Redux] ✓ MDPNP stored:`, {
-          vitals: { HR: workload.latestData.HR, CO2_ET: workload.latestData.CO2_ET, BP_DIA: workload.latestData.BP_DIA },
+          vitals: { HR: workload.latestData.HR, CO2_ET: workload.latestData.CO2_ET, BP_DIA: workload.latestData.BP_DIA, BP_SIA: workload.latestData.BP_SIA },
           hasWaveform: !!workload.waveform
         });
       } else if (workloadId === '3d-pose') {

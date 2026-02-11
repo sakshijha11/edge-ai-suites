@@ -30,7 +30,7 @@ export const WORKLOADS = [
     name: 'MDPNP',
     color: '#0071c5',
     description: 'Medical Device Plug-and-Play Integration',
-    dataKeys: ['HR', 'RR', 'SpO2', 'CO2_ET', 'BP_DIA', 'BP_SYS'] as const, // Medical device vitals
+    dataKeys: ['HR', 'RR', 'SpO2', 'CO2_ET', 'BP_DIA', 'BP_SYS', 'BP_SIA'] as const, // Medical device vitals
     hasWaveform: true,
   },
   {
