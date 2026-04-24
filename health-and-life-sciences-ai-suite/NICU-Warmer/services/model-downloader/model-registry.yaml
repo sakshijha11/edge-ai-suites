@@ -1,0 +1,51 @@
+# NICU Warmer — Model Download Registry
+#
+# Standalone model downloader service configuration.
+# Download URLs for OpenVINO IR model pairs (XML + BIN).
+#
+# Detection models + video are hosted as GitHub Release assets.
+# Action recognition models come from Open Model Zoo.
+# rPPG (MTTS-CAN) is downloaded as HDF5 and converted to OpenVINO IR on the fly.
+
+detection-models:
+  description: "Custom detection models (person, patient, latch)"
+  target_dir: /models
+  models:
+    - name: person-detect-fp32
+      xml_url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/person-detect-fp32.xml
+      bin_url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/person-detect-fp32.bin
+
+    - name: patient-detect-fp32
+      xml_url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/patient-detect-fp32.xml
+      bin_url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/patient-detect-fp32.bin
+
+    - name: latch-detect-fp32
+      xml_url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/latch-detect-fp32.xml
+      bin_url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/latch-detect-fp32.bin
+
+action-recognition:
+  description: "Standard Open Model Zoo action recognition models (encoder + decoder)"
+  target_dir: /models/action
+  models:
+    - name: action-recognition-0001-encoder
+      xml_url: https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.1/models_bin/3/action-recognition-0001-encoder/FP32/action-recognition-0001-encoder.xml
+      bin_url: https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.1/models_bin/3/action-recognition-0001-encoder/FP32/action-recognition-0001-encoder.bin
+
+    - name: action-recognition-0001-decoder
+      xml_url: https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.1/models_bin/3/action-recognition-0001-decoder/FP32/action-recognition-0001-decoder.xml
+      bin_url: https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.1/models_bin/3/action-recognition-0001-decoder/FP32/action-recognition-0001-decoder.bin
+
+rppg:
+  description: "MTTS-CAN rPPG model — download HDF5 and convert to OpenVINO IR"
+  target_dir: /models/rppg
+  convert: true
+  models:
+    - name: mtts_can
+      hdf5_url: https://github.com/xliucs/MTTS-CAN/raw/main/mtts_can.hdf5
+
+video:
+  description: "Default test video for NICU Warmer pipeline"
+  target_dir: /data
+  models:
+    - name: Warmer_Testbed_YTHD
+      url: https://github.com/sakshijha11/edge-ai-suites/releases/download/nicu-models-v1/Warmer_Testbed_YTHD.mp4
