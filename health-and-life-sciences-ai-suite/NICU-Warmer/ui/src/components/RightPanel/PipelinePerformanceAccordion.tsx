@@ -60,16 +60,6 @@ export function PipelinePerformanceAccordion() {
   return (
     <Accordion title="Pipeline Performance" defaultOpen>
       <div className="pipeline-perf">
-        {isRunning && pipelinePerf?.pipeline_fps > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: '12px', color: '#555' }}>
-            <span style={{ fontWeight: 600, color: '#24292f' }}>Pipeline FPS:</span>
-            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: '#1565c0' }}>
-              {pipelinePerf.pipeline_fps.toFixed(1)}
-            </span>
-            <span style={{ fontSize: '10px', color: '#999' }}>({pipelinePerf.decode})</span>
-          </div>
-        )}
-
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
@@ -81,8 +71,6 @@ export function PipelinePerformanceAccordion() {
               <th style={thStyle}>Workload</th>
               <th style={thStyle}>Model</th>
               <th style={thStyle}>Device</th>
-              <th style={thStyle}>FPS</th>
-              <th style={thStyle}>Latency</th>
               <th style={thStyle}>Status</th>
             </tr>
           </thead>
@@ -97,8 +85,6 @@ export function PipelinePerformanceAccordion() {
               const rowBg = i % 2 === 0 ? '#fff' : '#f4f5f7';
               const cellStyle: React.CSSProperties = { padding: '8px 10px', border: '1px solid #bbb', verticalAlign: 'middle' };
               const isFallback = fallback && fallback[def.fallbackKey];
-              const fps = sseRow.fps ?? (isRunning && pipelinePerf?.pipeline_fps ? pipelinePerf.pipeline_fps : null);
-              const latency = sseRow.latency_ms ?? null;
 
               return (
                 <tr key={def.name} style={{ background: rowBg }}>
@@ -134,12 +120,6 @@ export function PipelinePerformanceAccordion() {
                         fallback
                       </span>
                     )}
-                  </td>
-                  <td style={{ ...cellStyle, fontFamily: 'monospace', fontWeight: 600, fontSize: '11px', color: isRunning ? '#24292f' : '#ccc' }}>
-                    {fps !== null ? fps.toFixed(1) : '—'}
-                  </td>
-                  <td style={{ ...cellStyle, fontFamily: 'monospace', fontSize: '11px', color: latency !== null ? '#24292f' : '#ccc' }}>
-                    {latency !== null ? `${latency.toFixed(1)} ms` : '\u2014'}
                   </td>
                   <td style={cellStyle}>
                     <span style={{

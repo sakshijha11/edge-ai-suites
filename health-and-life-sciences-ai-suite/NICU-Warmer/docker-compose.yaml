@@ -6,6 +6,8 @@ services:
     container_name: nicu-backend
     ports:
       - "5001:5001"
+    env_file:
+      - ${DEVICE_ENV:-configs/res/mixed-optimized.env}
     environment:
       - PYTHONUNBUFFERED=1
       - HTTP_PROXY=${HTTP_PROXY:-}
@@ -108,6 +110,8 @@ services:
     container_name: nicu-dlsps
     user: "0:0"
     profiles: ["dlsps"]
+    env_file:
+      - ${DEVICE_ENV:-configs/res/mixed-optimized.env}
     ports:
       - "8080:8080"
     devices:
@@ -129,6 +133,8 @@ services:
     volumes:
       - ./dlsps/config.json:/home/pipeline-server/config.json:ro
       - ./dlsps/user_defined_pipelines:/var/cache/pipeline_root/user_defined_pipelines
+      - ./configs/workload_to_device.json:/configs/workload_to_device.json:ro
+      - ./configs/res:/configs/res:ro
       - ./Warmer_Testbed_YTHD.mp4:/data/Warmer_Testbed_YTHD.mp4:ro
       - ./person-detect-fp32.xml:/models/person-detect-fp32.xml:ro
       - ./person-detect-fp32.bin:/models/person-detect-fp32.bin:ro
@@ -138,10 +144,11 @@ services:
       - ./latch-detect-fp32.bin:/models/latch-detect-fp32.bin:ro
       - ./models_rppg/mtts_can.xml:/models/rppg/mtts_can.xml:ro
       - ./models_rppg/mtts_can.bin:/models/rppg/mtts_can.bin:ro
-      - ./action-recognition-0001-encoder.xml:/models/action/action-recognition-0001-encoder.xml:ro
-      - ./action-recognition-0001-encoder.bin:/models/action/action-recognition-0001-encoder.bin:ro
-      - ./action-recognition-0001-decoder.xml:/models/action/action-recognition-0001-decoder.xml:ro
-      - ./action-recognition-0001-decoder.bin:/models/action/action-recognition-0001-decoder.bin:ro
+      # Action recognition — FP32 (original, always available)
+      - ./action-recognition-0001-encoder.xml:/models/action/FP32/action-recognition-0001-encoder.xml:ro
+      - ./action-recognition-0001-encoder.bin:/models/action/FP32/action-recognition-0001-encoder.bin:ro
+      - ./action-recognition-0001-decoder.xml:/models/action/FP32/action-recognition-0001-decoder.xml:ro
+      - ./action-recognition-0001-decoder.bin:/models/action/FP32/action-recognition-0001-decoder.bin:ro
       - ./data/kinetics.txt:/models/action/kinetics.txt:ro
       - ./extensions:/extensions:ro
       - ./extensions/publisher_utils_patched.py:/home/pipeline-server/utils/publisher_utils.py:ro

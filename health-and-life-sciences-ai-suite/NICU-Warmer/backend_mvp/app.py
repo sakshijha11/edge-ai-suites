@@ -5,6 +5,7 @@ import base64
 import copy
 import json
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -86,10 +87,10 @@ class MVPBackend:
                 "right": 0.70,
             },
             "roi_custom": False,      # True when user has explicitly set ROI
-            "devices": {              # per-model device assignments
-                "detect": "GPU",
-                "rppg": "CPU",
-                "action": "NPU",
+            "devices": {              # per-model device assignments (from env profile)
+                "detect": os.environ.get("DETECTION_DEVICE", "GPU"),
+                "rppg": os.environ.get("RPPG_DEVICE", "CPU"),
+                "action": os.environ.get("ACTION_DEVICE", "NPU"),
             },
         }
         # In DLSPS inference mode, use the tee pipeline for full-speed frames
@@ -1606,6 +1607,48 @@ def create_app(config_path: str) -> Flask:
             "devices": uc.get("devices"),
             "pending": backend._has_pending_changes,
             "fallback": backend._npu_fallback if backend._npu_fallback else None,
+        })
+
+    @app.get("/device-profile")
+    def device_profile_get() -> Response:
+        """Return active device assignments and the resolved pipeline optimizations.
+
+        Uses the current user_config device selections (same as what the UI
+        sets via /config/devices) and resolves the optimal decode, pre-process,
+        and inference settings via the device_profiles lookup.
+        """
+        from backend_mvp.device_profiles import resolve_pipeline_settings as _resolve
+
+        user_devs = backend._user_config.get("devices", {})
+        # Use user-selected devices, fall back to env profile defaults
+        devices = {
+            "detect": user_devs.get("detect", os.environ.get("DETECTION_DEVICE", "GPU")),
+            "rppg": user_devs.get("rppg", os.environ.get("RPPG_DEVICE", "CPU")),
+            "action": user_devs.get("action", os.environ.get("ACTION_DEVICE", "NPU")),
+        }
+        resolved = _resolve(devices)
+
+        # If DLSPS controller has resolved settings from last pipeline start, prefer those
+        dlsps_resolved = getattr(backend.dlsps, "_resolved_settings", None)
+        if dlsps_resolved:
+            resolved = dlsps_resolved
+
+        return jsonify({
+            "devices": {
+                "detection": resolved["detect_device"],
+                "rppg": resolved["rppg_device"],
+                "action": resolved["action_device"],
+            },
+            "optimizations": {
+                "decode": resolved["decode"],
+                "pre_process": resolved["pre_process"],
+                "detection_options": resolved["detect"].get("inference_options", ""),
+                "detection_precision": resolved["detect"].get("precision", "FP32"),
+                "rppg_precision": resolved["rppg"].get("precision", "FP32"),
+                "action_precision": resolved["action"].get("precision", "FP32"),
+            },
+            "deployment_profile": os.environ.get("DEVICE_PROFILE", "mixed-optimized"),
+            "available_profiles": ["all-cpu", "all-gpu", "all-npu", "mixed-optimized"],
         })
 
     return app

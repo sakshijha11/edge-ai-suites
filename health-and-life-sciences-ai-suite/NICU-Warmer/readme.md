@@ -57,11 +57,13 @@ results to the React UI over Server-Sent Events (SSE).
 - **Multi-Model Pipeline**: 5 AI models running in one GStreamer pipeline at ~15 FPS
 - **GPU/NPU Acceleration**: Detection on Intel Arc GPU, action recognition on Intel NPU
 - **Contactless Vital Signs**: Heart rate and respiration rate via remote photoplethysmography (rPPG)
-- **Action Recognition**: Kinetics-400 encoder/decoder mapped to 10 NICU-specific categories
+- **Action Recognition**: Kinetics-400 encoder/decoder mapped to 11 NICU-specific categories
 - **Motion Analysis**: Frame-differencing for real-time activity level detection
 - **Live Dashboard**: React + Vite UI with real-time video feed, detection cards, waveform charts
-- **Per-Workload Metrics**: FPS and inference latency tracked per model in the Pipeline Performance table
+- **Per-Workload Metrics**: Device assignment and status tracked per model in the Pipeline Performance table
 - **Hardware Monitoring**: CPU, GPU, NPU, memory, and power utilization charts
+- **Device Configuration Profiles**: Pre-built deployment profiles (all-CPU, all-GPU, all-NPU, mixed-optimized) with runtime optimization lookup
+- **Runtime Device Optimization**: Automatic pipeline tuning (decode, pre-process, inference options) based on selected hardware per workload
 - **Configurable Pipeline**: Upload custom videos, set face ROI, choose device per workload
 - **Apply & Restart**: Change configuration while pipeline is running — apply with one click
 - **NPU Fallback**: Automatic CPU fallback if NPU is unavailable
@@ -119,7 +121,7 @@ gvapython: ActionCallback (NPU — OpenVINO)
     ├── Encoder: per-frame 512-dim feature extraction
     ├── Decoder: every 8 frames → Kinetics-400 classification
     ├── Motion analyser: frame-differencing → activity level
-    └── NICU category mapping (10 categories)
+    └── NICU category mapping (11 categories)
     │
     ▼
 gvapython: MQTTPublisher → MQTT topic "nicu/detections"
@@ -127,7 +129,7 @@ gvapython: MQTTPublisher → MQTT topic "nicu/detections"
     ▼
 Flask Backend (MQTT subscriber)
     ├── RuntimeAggregator → normalise detections + rPPG + action
-    ├── Per-workload FPS & latency tracking
+    ├── Per-workload device & status tracking
     ├── SSE stream → delta events to React UI
     │
     ▼
@@ -136,7 +138,7 @@ React Dashboard (http://localhost:3001)
     ├── Detection Cards (patient / caretaker / latch)
     ├── RppgCard (HR / RR waveform charts)
     ├── ActionCard (activity + motion level)
-    ├── Pipeline Performance (per-model FPS + latency + device)
+    ├── Pipeline Performance (per-model device + status)
     └── Resource Utilization (CPU / GPU / NPU / Memory / Power)
 ```
 
@@ -310,7 +312,41 @@ The default device assignment is optimised for Intel Meteor Lake:
 | rPPG (MTTS-CAN) | CPU | Small model, fast inference (~2 ms) |
 | Action Recognition | NPU | Frees CPU for rPPG; encoder+decoder fits NPU well |
 
-Benchmark results across 5 configurations are documented in `reference/FPS_BENCHMARK.md`.
+### Device Configuration Profiles
+
+Pre-built deployment profiles set environment variables for all device and model
+settings at container start. Select a profile at launch via `DEVICE_ENV`:
+
+```bash
+make run                # Default (mixed-optimized)
+make run-cpu            # All workloads on CPU
+make run-gpu            # All workloads on GPU
+make run-npu            # All workloads on NPU
+make run-mixed          # Explicit mixed-optimized
+```
+
+Profiles are defined in `configs/res/`:
+
+| Profile | File | Detection | rPPG | Action |
+|---------|------|-----------|------|--------|
+| Mixed-Optimized (default) | `mixed-optimized.env` | GPU | CPU | NPU |
+| All-CPU | `all-cpu.env` | CPU | CPU | CPU |
+| All-GPU | `all-gpu.env` | GPU | GPU | GPU |
+| All-NPU | `all-npu.env` | NPU | NPU | NPU |
+
+### Runtime Device Optimization
+
+When a user selects devices from the UI (or via the `/config/devices` API),
+the backend automatically resolves optimal pipeline settings through
+`backend_mvp/device_profiles.py`. For each device, the system applies:
+
+- **Decode method**: VA-API hardware decode for GPU, software decode for CPU/NPU
+- **Pre-process backend**: VA-API surface sharing for GPU, OpenCV for CPU/NPU
+- **Inference options**: Device-specific OpenVINO configs (e.g., `PERFORMANCE_HINT=THROUGHPUT` for GPU)
+- **Model precision**: FP32 (current), extensible to FP16/INT8
+
+The `/device-profile` API endpoint returns the current device assignments along
+with the resolved optimization settings.
 
 ---
 
@@ -325,7 +361,7 @@ Benchmark results across 5 configurations are documented in `reference/FPS_BENCH
 
 ### Right Panel
 
-- **Pipeline Performance**: Per-workload table showing model, device, FPS, inference latency, and status — with live pipeline FPS badge
+- **Pipeline Performance**: Per-workload table showing model, device, and status
 - **Resource Utilization**: Real-time CPU, GPU, NPU, memory, and power charts
 - **Platform Info**: Processor, GPU, NPU, memory, OS details
 
@@ -367,6 +403,7 @@ Benchmark results across 5 configurations are documented in `reference/FPS_BENCH
 | `POST` | `/config/devices` | Set device per workload (JSON: detect/rppg/action) |
 | `GET` | `/config/devices/available` | Probe available hardware (CPU/GPU/NPU) |
 | `POST` | `/config/apply` | Apply pending config (stop → restart pipeline) |
+| `GET` | `/device-profile` | Current device assignments + resolved optimizations |
 
 ### SSE Event Format
 
@@ -441,18 +478,19 @@ filesrc → decodebin3 (VA-API HW decode)
 
 ### Action Recognition Categories (NICU-Mapped)
 
-The Kinetics-400 raw predictions are mapped to 10 NICU-relevant categories:
+The Kinetics-400 raw predictions are mapped to 11 NICU-relevant categories:
 
-1. Resting / Still
-2. Arm Movement
-3. Hand / Finger Movement
-4. Patient Handling / Care
-5. Head / Body Turning
-6. Feeding / Bottle Handling
-7. Reaching / Pointing
-8. Equipment Interaction
-9. Communication / Gesture
-10. Other Clinical Activity
+1. Arm Movement
+2. Hand Movement
+3. Patient Handling
+4. Reaching / Adjusting
+5. Patient Distress
+6. Resting / Still
+7. Walking / Moving
+8. Bending / Leaning
+9. Monitoring / Observing
+10. Food / Equipment Prep
+11. Sports / Recreation
 
 ---
 
@@ -462,17 +500,9 @@ The Pipeline Performance table shows **live per-workload metrics**:
 
 | Column | Source | Description |
 |--------|--------|------------|
-| **FPS** | MQTT message arrival rate | All workloads share the pipeline FPS (serial pipeline) |
-| **Latency** | Extension-measured inference time | Time (ms) for model inference per frame |
+| **Model** | Pipeline config | Workload name (Detection, rPPG, Action Recognition) |
 | **Device** | Config API + SSE | Current hardware accelerator (CPU/GPU/NPU) |
 | **Status** | SSE pipeline_performance | Running / Idle indicator |
-
-**How latency is measured:**
-- rPPG: `time.monotonic()` around OpenVINO `compiled_model()` call in `rppg_gva.py`
-- Action: `time.monotonic()` around encoder + decoder calls in `action_gva.py`
-- Detection: No per-model timing (runs inside native gvadetect element)
-
-Detection FPS equals pipeline FPS since detection is the first stage.
 
 ---
 
@@ -483,13 +513,20 @@ NICU-Warmer/
 ├── backend_mvp/                    # Flask backend application
 │   ├── app.py                      # Main app: endpoints, SSE, MQTT, inference loop
 │   ├── aggregator.py               # Detection normalisation
+│   ├── device_profiles.py          # Runtime device optimization lookup
 │   ├── dlsps_controller.py         # DLSPS REST client + pipeline payload builder
 │   ├── frame_service.py            # MJPEG frame management
 │   ├── lifecycle.py                # Pipeline state machine
 │   └── state_store.py              # In-memory state store
 ├── configs/
 │   ├── mvp-backend.yaml            # Backend configuration
-│   └── mosquitto.conf              # MQTT broker config
+│   ├── workload_to_device.json     # Workload-to-device mapping
+│   ├── mosquitto.conf              # MQTT broker config
+│   └── res/                        # Device configuration profiles
+│       ├── mixed-optimized.env     # Default: GPU detect, CPU rPPG, NPU action
+│       ├── all-cpu.env             # All workloads on CPU
+│       ├── all-gpu.env             # All workloads on GPU
+│       └── all-npu.env             # All workloads on NPU
 ├── dlsps/
 │   ├── config.json                 # DLSPS server config
 │   └── user_defined_pipelines/     # GStreamer pipeline templates
@@ -559,28 +596,20 @@ npm install
 npm run dev    # Vite dev server on http://localhost:5173
 ```
 
-### Running Tests
-
-```bash
-make test-mvp          # Backend unit tests
-make wave5-smoke       # Smoke test suite
-make wave5-soak        # Soak test suite (long-running)
-```
-
 ---
 
 ## Make Targets
 
 ```bash
 make setup             # Download models + video (first-time)
-make run               # Start all 5 services with DLSPS
+make run               # Start all 5 services (mixed-optimized profile)
+make run-cpu           # Start with all-CPU device profile
+make run-gpu           # Start with all-GPU device profile
+make run-npu           # Start with all-NPU device profile
+make run-mixed         # Start with mixed-optimized profile (explicit)
 make down              # Stop and remove all containers
-make run-without-dlsps # Start without DLSPS (backend-only inference)
 make run-model-setup   # Re-run model downloader
 make run-mvp           # Run backend locally (outside Docker)
-make test-mvp          # Run backend unit tests
-make wave5-smoke       # Smoke tests
-make wave5-soak        # Soak tests
 ```
 
 ---
