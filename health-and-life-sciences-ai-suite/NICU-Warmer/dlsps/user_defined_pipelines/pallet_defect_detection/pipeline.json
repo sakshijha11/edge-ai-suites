@@ -1,0 +1,18 @@
+{
+    "type": "GStreamer",
+    "template": [
+        "{auto_source} ! decodebin ! videoconvert ! gvadetect name=detection model-instance-id=inst0 ! queue ! gvafpscounter ! gvametaconvert add-empty-results=true name=metaconvert ! gvametapublish name=destination ! appsink name=appsink"
+    ],
+    "description": "DL Streamer Pipeline Server pipeline",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "detection-properties": {
+                "element": {
+                    "name": "detection",
+                    "format": "element-properties"
+                }
+            }
+        }
+    }
+}

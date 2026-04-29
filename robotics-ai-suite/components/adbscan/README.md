@@ -27,7 +27,7 @@ All ROS2 packages support the following platforms:
 
 ### System Requirements
 
-Prepare the target system following the [official documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/robotics-ai-suite/robotics/gsg_robot/index.html).
+Prepare the target system following the [official documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/robotics-ai-suite/rvc/getstarted/prepare_system.html).
 
 ### Build
 
@@ -40,10 +40,7 @@ ROS_DISTRO=jazzy make package
 You can list all built packages:
 
 ```bash
-ls | grep -i .deb
-```
-
-```text
+$ ls | grep -i .deb
 ros-jazzy-adbscan-ros2_2.3-1_amd64.deb
 ros-jazzy-follow-me-interfaces_2.3-1_amd64.deb
 ros-jazzy-adbscan-follow-me-rs2d_2.3-1_amd64.deb
@@ -118,10 +115,7 @@ make license-check
 To see a full list of available Makefile targets:
 
 ```bash
-make help
-```
-
-```text
+$ make help
 Target               Description
 ------               -----------
 clean                Clean up all build artifacts
@@ -162,7 +156,7 @@ This directory contains necessary Python scripts to visualize the bounding boxes
 
 This is a ROS2 package for an AMR algorithm where a robot follows a target person. It contains a ROS2 node which subscribes to pointcloud sensors (LIDAR/RealSense camera), uses the ADBSCAN algorithm to cluster the data and detect the location of the target person, and subsequently publishes the velocity commands for a differential drive robot.
 
-This package supports four demo modes combining two sensor types (2D LiDAR or Intel RealSense depth camera) with optional hand-gesture control and voice audio control via OpenVINO speech recognition.
+This package contains another version of the follow-me application: gesture-based follow-me. This version integrates a gesture recognition model to the existing implementation to control the movement of the robot with hand gestures of the target person.
 Find instructions for this package: [Follow_me_RS_2D package instructions](Follow_me_RS_2D/Readme.md)
 
 ### package/tutorial_follow_me

@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-# These contents may have been developed with support from one or more
-# Intel-operated generative artificial intelligence solutions.
 """
 wandering_metrics.py — helper for wandering_run.sh
 
@@ -54,7 +49,7 @@ def cmd_sample_rtf(rtf_log: str) -> None:
     prev_wall: float | None = None
     sec: int | None = None
 
-    with open(rtf_log, "a", buffering=1, encoding="utf-8") as fout:
+    with open(rtf_log, "a", buffering=1) as fout:
         for raw in sys.stdin:
             s = raw.strip()
             if s.startswith("sec:"):
@@ -64,10 +59,10 @@ def cmd_sample_rtf(rtf_log: str) -> None:
                     pass
             elif s.startswith("nanosec:") and sec is not None:
                 try:
-                    sim = sec + int(s.split(":", 1)[1]) / 1e9
+                    sim  = sec + int(s.split(":", 1)[1]) / 1e9
                     wall = time.time()
                     if prev_sim is not None:
-                        dsim = sim - prev_sim
+                        dsim  = sim  - prev_sim
                         dwall = wall - prev_wall  # type: ignore[operator]
                         if dwall >= 0.5 and dsim >= 0:
                             fout.write(f"{dsim / dwall:.4f}\n")
@@ -88,7 +83,7 @@ def cmd_watch_rtf(rtf_log: str) -> None:
         time.sleep(0.5)
 
     below = 0
-    with open(rtf_log, "r", encoding="utf-8") as fin:
+    with open(rtf_log, "r") as fin:
         # Seek to end so we only see new lines
         fin.seek(0, 2)
         while True:
@@ -158,8 +153,7 @@ def _verdict(throttled: str) -> str:
     return "\u2705 none" if throttled == "0" else f"\u26a0 {throttled} sample(s)"
 
 
-def cmd_compare(  # pylint: disable=too-many-locals
-        labeled_logs: list[tuple[str, str]], out_dir: str | None = None) -> None:
+def cmd_compare(labeled_logs: list[tuple[str, str]], out_dir: str | None = None) -> None:
     """Print a side-by-side comparison table for any number of labeled run logs.
 
     Parameters
@@ -170,7 +164,7 @@ def cmd_compare(  # pylint: disable=too-many-locals
     texts: list[str] = []
     labels: list[str] = []
     for label, path in labeled_logs:
-        with open(path, encoding="utf-8") as f:
+        with open(path) as f:
             texts.append(f.read())
         labels.append(label)
 
@@ -178,23 +172,23 @@ def cmd_compare(  # pylint: disable=too-many-locals
 
     # Build row data: list of (row_label, [col_value, ...])
     row_defs = [
-        ("Goals reached", [_extract_goals(t) for t in texts]),
-        ("Elapsed time", [_extract_elapsed(t) for t in texts]),
-        ("RTF average", [r["avg"] for r in rtfs]),
-        ("RTF min", [r["min"] for r in rtfs]),
-        ("RTF max", [r["max"] for r in rtfs]),
-        ("Throttled (RTF<0.5)", [_verdict(r["throttled"]) for r in rtfs]),
-        ("/camera/image_raw Hz", [_extract_hz(t, "/camera/image_raw") for t in texts]),
-        ("/cmd_vel_nav Hz", [_extract_hz(t, "/cmd_vel_nav") for t in texts]),
-        ("/plan Hz", [_extract_hz(t, "/plan") for t in texts]),
+        ("Goals reached",              [_extract_goals(t)   for t in texts]),
+        ("Elapsed time",               [_extract_elapsed(t) for t in texts]),
+        ("RTF average",                [r["avg"]            for r in rtfs]),
+        ("RTF min",                    [r["min"]            for r in rtfs]),
+        ("RTF max",                    [r["max"]            for r in rtfs]),
+        ("Throttled (RTF<0.5)",        [_verdict(r["throttled"]) for r in rtfs]),
+        ("/camera/image_raw Hz",       [_extract_hz(t, "/camera/image_raw") for t in texts]),
+        ("/cmd_vel_nav Hz",            [_extract_hz(t, "/cmd_vel_nav")      for t in texts]),
+        ("/plan Hz",                   [_extract_hz(t, "/plan")             for t in texts]),
     ]
 
     # Column widths
     n = len(labels)
-    label_w = 26
-    col_w = max(15, max(len(lb) for lb in labels) + 2)
+    LABEL_W = 26
+    COL_W = max(15, max(len(lb) for lb in labels) + 2)
 
-    total_w = label_w + (col_w + 2) * n + 2
+    total_w = LABEL_W + (COL_W + 2) * n + 2
 
     print()
     print("\u2554" + "\u2550" * total_w + "\u2557")
@@ -203,10 +197,10 @@ def cmd_compare(  # pylint: disable=too-many-locals
     print("\u255a" + "\u2550" * total_w + "\u255d")
 
     # Header row
-    fmt_parts = [f"{{:<{label_w}}}"] + [f"{{:<{col_w}}}"] * n
+    fmt_parts = [f"{{:<{LABEL_W}}}"] + [f"{{:<{COL_W}}}"] * n
     fmt = "  " + "  ".join(fmt_parts)
     print(fmt.format("Metric", *labels))
-    print(fmt.format("─" * label_w, *["─" * col_w] * n))
+    print(fmt.format("\u2500" * LABEL_W, *["\u2500" * COL_W] * n))
 
     for row_label, values in row_defs:
         print(fmt.format(row_label, *values))
@@ -215,7 +209,7 @@ def cmd_compare(  # pylint: disable=too-many-locals
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
         csv_path = os.path.join(out_dir, "comparison.csv")
-        with open(csv_path, "w", encoding="utf-8") as f:
+        with open(csv_path, "w") as f:
             f.write("metric," + ",".join(labels) + "\n")
             for row_label, values in row_defs:
                 f.write(row_label + "," + ",".join(values) + "\n")
@@ -228,7 +222,6 @@ def cmd_compare(  # pylint: disable=too-many-locals
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
-    """Parse command-line arguments and dispatch to the appropriate subcommand."""
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)

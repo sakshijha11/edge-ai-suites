@@ -16,16 +16,12 @@ def run_cli(cmd: List[str], log_fn: Callable[[str], None] = print) -> int:
     """
     try:
         logger.info(f"Running: {cmd}")
-        env = {**__import__("os").environ, "PYTHONIOENCODING": "utf-8"}
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,  # merge stderr into stdout
             text=True,
-            encoding="utf-8",
-            errors="replace",
-            bufsize=1,  # line-buffered
-            env=env,
+            bufsize=1  # line-buffered
         )
 
         # Stream output line by line

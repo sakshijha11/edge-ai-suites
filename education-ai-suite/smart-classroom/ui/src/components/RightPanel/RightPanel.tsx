@@ -5,18 +5,12 @@ import ClassStatisticsAccordion from './ClassEngagementAccordion';
 import PreValidatedModelsAccordion from "./PreValidatedModelsAccordion";
 import "../../assets/css/RightPanel.css";
 
-interface RightPanelProps {
-  activeScreen: 'main' | 'content-search';
-}
-
-const RightPanel: React.FC<RightPanelProps> = ({ activeScreen }) => {
+const RightPanel: React.FC = () => {
   return (
     <div className="right-panel">
       <ConfigurationMetricsAccordion />
-      <ResourceUtilizationAccordion activeScreen={activeScreen} />
-      <div style={{ display: activeScreen === 'main' ? 'contents' : 'none' }}>
-        <ClassStatisticsAccordion />
-      </div>
+      <ResourceUtilizationAccordion />
+      <ClassStatisticsAccordion />
       <PreValidatedModelsAccordion />
     </div>
   );

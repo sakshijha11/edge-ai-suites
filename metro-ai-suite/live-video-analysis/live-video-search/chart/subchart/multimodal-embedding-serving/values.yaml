@@ -27,7 +27,7 @@ global:
   vssStackTag: ''
 images:
   multimodalEmbeddingServing:
-    repository: multimodal-embedding-serving
+    repository: intel/multimodal-embedding-serving
 
 imageOverride:
   registry: ''

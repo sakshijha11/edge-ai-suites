@@ -70,7 +70,9 @@ Stationary Robot Vision & Control Resources
 
 - :doc:`Release Notes <releasenotes>`
 
-- :doc:`Troubleshooting <../troubleshooting>`
+- :doc:`Troubleshootings <troubleshooting>`
+
+- `Notices and Disclaimers <https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/robotics-ai-suite/legal.html>`__
 
 .. toctree::
    :maxdepth: 2
@@ -81,4 +83,5 @@ Stationary Robot Vision & Control Resources
    use_cases
    development
    releasenotes
-
+   troubleshooting
+   

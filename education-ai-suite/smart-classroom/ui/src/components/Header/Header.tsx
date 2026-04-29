@@ -402,20 +402,20 @@ const HeaderBar: React.FC<HeaderBarProps> = ({ projectName }) => {
         videoResult.results.forEach((result: any) => {
           console.log(`📹 Processing result for ${result.pipeline_name}:`, result);
           
-          if (result.status === 'success' && result.stream_url) {
+          if (result.status === 'success' && result.hls_stream) {
             hasSuccessfulStreams = true;
             successfulPipelines.push(result.pipeline_name);
-            console.log(`✅ ${result.pipeline_name} stream URL:`, result.stream_url);
+            console.log(`✅ ${result.pipeline_name} stream URL:`, result.hls_stream);
             
             switch (result.pipeline_name) {
               case 'front':
-                dispatch(setFrontCameraStream(result.stream_url));
+                dispatch(setFrontCameraStream(result.hls_stream));
                 break;
               case 'back':
-                dispatch(setBackCameraStream(result.stream_url));
+                dispatch(setBackCameraStream(result.hls_stream));
                 break;
               case 'content':
-                dispatch(setBoardCameraStream(result.stream_url));
+                dispatch(setBoardCameraStream(result.hls_stream));
                 break;
             }
           } else {

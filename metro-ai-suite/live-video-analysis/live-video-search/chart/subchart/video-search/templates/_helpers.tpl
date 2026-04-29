@@ -28,12 +28,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "lvs.videosearch.image" -}}
-{{- $registry := .registry -}}
+{{- $registry := .registry | default "" -}}
 {{- $repository := .repository -}}
 {{- $tag := .tag -}}
 {{- if $registry -}}
-{{ trimSuffix "/" $registry }}/{{ $repository }}:{{ $tag }}
+{{- printf "%s/%s:%s" (trimSuffix "/" $registry) $repository $tag -}}
 {{- else -}}
-intel/{{ $repository }}:{{ $tag }}
+{{- printf "%s:%s" $repository $tag -}}
 {{- end -}}
 {{- end -}}

@@ -2,7 +2,7 @@
 
 The stack ingests an RTSP stream, runs a DLStreamer pipeline that samples frames for VLM inference, and sends results to the dashboard.
 
-![System Architecture Diagram](./_assets/architecture.jpg "system architecture")
+![System Architecture Diagram](./_assets/architecture.jpg)
 
 ## Data Flow
 
@@ -21,6 +21,7 @@ RTSP Source → dlstreamer-pipeline-server
 - **coturn**: TURN server for NAT traversal in WebRTC connections
 - **app**: Python FastAPI backend serving REST APIs, SSE metadata streams, and WebSocket metrics
 - **collector**: Intel VIP-PET system metrics collector (CPU, GPU, memory, power)
+
 
 ## Learn More
 

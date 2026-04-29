@@ -34,7 +34,6 @@ logs/
 # Ignore model files
 ov-model/
 ov-models/
-.ovms
 
 
 # Ignore pytest cache

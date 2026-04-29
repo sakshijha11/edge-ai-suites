@@ -1,11 +1,9 @@
 from os import PathLike
 from pathlib import Path
-from typing import List, Optional
 from zipfile import ZipFile
 import shutil
 
 import openvino as ov
-import torch
 from ultralytics import YOLO
 from ultralytics.data.utils import DATASETS_DIR
 from ultralytics.utils import DEFAULT_CFG
@@ -16,25 +14,11 @@ from ultralytics.utils.metrics import OKS_SIGMA
 import nncf
 
 DATA_URL = "https://ultralytics.com/assets/coco8-pose.zip"
-CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.4.0/ultralytics/cfg/datasets/coco8-pose.yaml"
+CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco8-pose.yaml"
 
 OUT_DIR = DATASETS_DIR
 DATA_PATH = OUT_DIR / "val2017.zip"
 CFG_PATH = OUT_DIR / "coco8-pose.yaml"
-
-_SUPPORTED_FAMILIES = ("v8", "11", "26")
-
-_MODEL_TYPE_MAP = {
-    "v8": "yolo_v8_pose",
-    "11": "yolo_v11_pose",  # DLStreamer model type has an extra 'v'
-    "26": "yolo_v26_pose",  # DLStreamer model type has an extra 'v'
-}
-
-def _detect_model_family(model_name: str) -> str:
-    for family in _SUPPORTED_FAMILIES:
-        if family in model_name:
-            return family
-    raise ValueError(f"Unsupported model family: {model_name}")
 
 
 def download_file(
@@ -109,14 +93,13 @@ def convert_yolo_to_openvino(model_name: str, output_dir: str):
 
     pose_model_dir = output_path / f"{model_name}_openvino_model"
     pose_model_path = pose_model_dir / f"{model_name}.xml"
-    if pose_model_dir.exists():
-        shutil.rmtree(pose_model_dir)
-    # Export to a temporary location then move to output_dir
-    temp_export_dir = Path(f"{model_name}_openvino_model")
-    pose_model.export(format="openvino", dynamic=True, half=True, end2end=True)
-    # Move the exported model to output_dir
-    if temp_export_dir.exists():
-        shutil.move(str(temp_export_dir), str(pose_model_dir))
+    if not pose_model_path.exists():
+        # Export to a temporary location then move to output_dir
+        temp_export_dir = Path(f"{model_name}_openvino_model")
+        pose_model.export(format="openvino", dynamic=True, half=True)
+        # Move the exported model to output_dir
+        if temp_export_dir.exists():
+            shutil.move(str(temp_export_dir), str(pose_model_dir))
 
     if pt_file.exists():
         pt_file.unlink()
@@ -128,7 +111,6 @@ def convert_yolo_to_openvino(model_name: str, output_dir: str):
     args.data = "coco8-pose.yaml"
 
     pose_validator = PoseValidator(args=args)
-    pose_validator.device = torch.device("cpu")
     pose_validator.data = check_det_dataset(args.data)
     pose_validator.stride = 32
     pose_data_loader = pose_validator.get_dataloader(OUT_DIR / "coco8-pose", 1)
@@ -142,55 +124,39 @@ def convert_yolo_to_openvino(model_name: str, output_dir: str):
     def transform_fn(data_item: dict):
         return pose_validator.preprocess(data_item)["img"].numpy()
 
-    family = _detect_model_family(model_name)
-
-    def get_ignored_scope():
-        if family in ("v8", "11"):
-            module_idx = 22 if family == "v8" else 23
-            return nncf.IgnoredScope(  # post-processing
-                subgraphs=[
-                    nncf.Subgraph(
-                        inputs=[
-                            f"__module.model.{module_idx}/aten::cat/Concat_1",
-                            f"__module.model.{module_idx}/aten::cat/Concat_4",
-                            f"__module.model.{module_idx}/aten::cat/Concat_5",
-                        ],
-                        outputs=[
-                            f"__module.model.{module_idx}/aten::cat/Concat_7"
-                        ],
-                    )
-                ]
-            )
-        return nncf.IgnoredScope(patterns=[".*one2one.*"])
-
     quantization_dataset = nncf.Dataset(pose_data_loader, transform_fn)
+    ignored_scope = nncf.IgnoredScope(  # post-processing
+        subgraphs=[
+            nncf.Subgraph(
+                inputs=[
+                    f"__module.model.{22 if 'v8' in model_name else 23}/aten::cat/Concat",
+                    f"__module.model.{22 if 'v8' in model_name else 23}/aten::cat/Concat_1",
+                    f"__module.model.{22 if 'v8' in model_name else 23}/aten::cat/Concat_2",
+                    f"__module.model.{22 if 'v8' in model_name else 23}/aten::cat/Concat_7",
+                ],
+                outputs=[
+                    f"__module.model.{22 if 'v8' in model_name else 23}/aten::cat/Concat_9"
+                ],
+            )
+        ]
+    )
+
     quantized_pose_model = nncf.quantize(
         pose_ov_model,
         quantization_dataset,
-        preset=nncf.QuantizationPreset.MIXED,
-        ignored_scope=get_ignored_scope(),
+        preset=nncf.QuantizationPreset.PERFORMANCE,
+        ignored_scope=ignored_scope,
     )
     quantized_pose_model.reshape([1, 3, 384, 640])
-    quantized_pose_model.set_rt_info(_MODEL_TYPE_MAP[family], ['model_info', 'model_type'])
+    quantized_pose_model.set_rt_info("yolo_v8_pose" if 'v8' in model_name else "yolo_v11_pose", ['model_info', 'model_type'])
     quantized_pose_model.set_rt_info("sit stand sit_raise_up stand_raise_up", ['model_info', 'labels'])
 
     print(f"Quantized model will be saved to {int8_model_pose_path}")
     ov.save_model(quantized_pose_model, str(int8_model_pose_path))
 
-    del quantized_pose_model, pose_ov_model, core, pose_model
-    import gc; gc.collect()
-    shutil.rmtree(pose_model_dir)
-
-
-def convert_yolo_models(output_dir: str = "models/va", models: Optional[List[str]] = None):
-    if models is None:
-        models = ["yolov8s-pose", "yolov8m-pose"]
-    for model in models:
-        if "pose" not in model:
-            raise ValueError(f"Model must be a pose model: {model}")
-        _detect_model_family(model)
-        convert_yolo_to_openvino(model, output_dir)
-
+def convert_yolo_models(output_dir: str = "models/va"):
+    convert_yolo_to_openvino("yolov8s-pose", output_dir)
+    convert_yolo_to_openvino("yolov8m-pose", output_dir)
 
 if __name__ == "__main__":
     convert_yolo_models()

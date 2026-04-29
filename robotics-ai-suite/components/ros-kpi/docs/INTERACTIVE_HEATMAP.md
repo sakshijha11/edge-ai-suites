@@ -24,17 +24,17 @@ The enhanced core heatmap visualization now provides interactive click functiona
 
 ### Click for Details
 - **Click on any cell** to open a detailed performance window showing:
-
+  
   **CPU Statistics**
   - CPU utilization percentage
-
+  
   **Memory Statistics**
   - RSS (Resident Set Size) in MB - actual physical memory used
   - VSZ (Virtual Size) in MB - total virtual memory allocated
   - Memory percentage of total system RAM
   - Minor page faults per second
   - Major page faults per second
-
+  
   **Process/Thread Details**
   - Complete list of all threads/processes on that core at that time
   - Individual CPU and memory usage for each thread
@@ -42,13 +42,15 @@ The enhanced core heatmap visualization now provides interactive click functiona
 
 ## Usage
 
+### Via Makefile (Recommended)
 ```bash
-uv run python demo_interactive_heatmap.py
+# After running a monitoring session
+make interactive-heatmap
 ```
 
-### With a specific session
+### Via Python Script
 ```bash
-uv run python demo_interactive_heatmap.py monitoring_sessions/<session_name>
+uv run python demo_interactive_heatmap.py
 ```
 
 ### Via Visualization Tool
@@ -62,10 +64,10 @@ uv run python src/visualize_resources.py monitoring_sessions/<session_name>/reso
 
 ```bash
 # 1. Run monitoring
-uv run python src/monitor_stack.py
+make monitor
 
 # 2. Open interactive heatmap
-uv run python demo_interactive_heatmap.py
+make interactive-heatmap
 
 # 3. Explore the data:
 #    - Hover over different cores to see activity

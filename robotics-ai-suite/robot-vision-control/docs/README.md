@@ -1,3 +1,1 @@
-# Robot Vision & Control (RVC) documentation
-
-The documentation files are in the [current documentation folder](../../docs/rvc/).
+The documentation files are at https://github.com/open-edge-platform/edge-ai-suites/tree/main/robotics-ai-suite/docs/rvc.

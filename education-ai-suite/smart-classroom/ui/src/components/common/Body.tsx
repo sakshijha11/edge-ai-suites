@@ -1,30 +1,23 @@
 import React, { useState } from "react";
 import LeftPanel from "../LeftPanel/LeftPanel";
 import RightPanel from "../RightPanel/RightPanel";
-import ContentSearchPanel from "../LeftPanel/ContentSearchPanel";
 import "../../assets/css/Body.css";
 
 interface BodyProps {
   isModalOpen: boolean;
-  activeScreen: 'main' | 'content-search';
 }
 
-const Body: React.FC<BodyProps> = ({ isModalOpen, activeScreen }) => {
+const Body: React.FC<BodyProps> = ({ isModalOpen }) => {
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const toggleRightPanel = () => setIsRightPanelCollapsed(!isRightPanelCollapsed);
 
   return (
     <div className="container">
       <div className="left-panel">
-        <div style={{ display: activeScreen === 'main' ? 'contents' : 'none' }}>
-          <LeftPanel />
-        </div>
-        <div style={{ display: activeScreen === 'content-search' ? 'contents' : 'none' }}>
-          <ContentSearchPanel />
-        </div>
+        <LeftPanel />
       </div>
       <div className="right-panel" style={{ flex: isRightPanelCollapsed ? 0 : 1 }}>
-        <RightPanel activeScreen={activeScreen} />
+        <RightPanel />
       </div>
       {!isModalOpen && (
         <div

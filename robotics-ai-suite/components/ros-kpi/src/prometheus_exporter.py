@@ -16,13 +16,15 @@ import argparse
 import csv
 import time
 import sys
+import os
 from pathlib import Path
 from collections import defaultdict
-from typing import Optional
+from typing import Dict, Optional
 import threading
 
 try:
-    from prometheus_client import Gauge, Info, make_wsgi_app
+    from prometheus_client import Gauge, Counter, Histogram, Info, make_wsgi_app
+    from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily, REGISTRY
 except ImportError:
     print("Error: prometheus_client not installed")
     print("Install with: uv sync")
@@ -36,6 +38,7 @@ def _start_http_server_reuse(port: int, addr: str = ''):
     """
     import socket
     from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
+    import logging
 
     class _SilentHandler(WSGIRequestHandler):
         def log_message(self, fmt, *args):   # suppress request logs
@@ -218,11 +221,9 @@ class ROS2MetricsCollector:
                     if tname not in topic_kpi:
                         topic_kpi[tname] = {}
                     kpi = topic_kpi[tname]
-
                     def _f(v):
                         try: return float(v) if v and v.strip() else None
-                        except Exception:
-                            return None
+                        except: return None
                     if kpi.get('freq')    is None: kpi['freq']    = _f(row.get('frequency_hz'))
                     if kpi.get('latency') is None: kpi['latency'] = _f(row.get('latency_mean_ms'))
                     if not kpi.get('msg_count'):   kpi['msg_count'] = int(_f(row.get('message_count')) or 0)

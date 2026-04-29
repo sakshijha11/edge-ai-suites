@@ -17,25 +17,28 @@ SPDX-License-Identifier: Apache-2.0
 
 | Task | Command | Duration |
 |------|---------|----------|
-| Quick check | `uv run python src/monitor_stack.py --duration 30` | 30 s |
-| Full monitor | `uv run python src/monitor_stack.py` | until Ctrl-C |
-| Full monitor (PID mode) | `uv run python src/monitor_stack.py --pid-only` | until Ctrl-C |
-| Monitor specific node | `uv run python src/monitor_stack.py --node /my_node` | until Ctrl-C |
-| Extended session | `uv run python src/monitor_stack.py --duration 300` | 5 min |
-| Graph only | `uv run python src/monitor_stack.py --graph-only` | until Ctrl-C |
-| Resources only (threads) | `uv run python src/monitor_stack.py --resources-only` | until Ctrl-C |
-| Resources only (PIDs) | `uv run python src/monitor_stack.py --resources-only --pid-only` | until Ctrl-C |
-| Remote system | `./grafana-monitor.sh --remote-ip <ip>` | until Ctrl-C |
-| Remote system (PID mode) | `./grafana-monitor.sh --remote-ip <ip> --pid-only` | until Ctrl-C |
-| Pipeline graph (interactive) | `uv run python src/visualize_graph.py <session> --show` | — |
-| Pipeline graph (PNG) | `uv run python src/visualize_graph.py <session> --no-show` | — |
-| List sessions | `uv run python src/monitor_stack.py --list-sessions` | — |
-| Re-visualize last session | `uv run python src/visualize_timing.py <session>/graph_timing.csv --show` | — |
+| Quick check | `make quick-check` | 30 s |
+| Full monitor | `make monitor` | 60 s |
+| Full monitor (PID mode) | `make monitor-pid` | 60 s |
+| Monitor specific node | `make monitor NODE=/my_node` | 60 s |
+| Extended session | `make monitor-long` | 5 min |
+| Graph only | `make graph-only` | 60 s |
+| Resources only (threads) | `make resources-threads` | 60 s |
+| Resources only (PIDs) | `make resources-pid` | 60 s |
+| Remote system | `make monitor-remote REMOTE_IP=<ip>` | 60 s |
+| Remote system (PID mode) | `make monitor-remote-pid REMOTE_IP=<ip>` | 60 s |
+| Pipeline graph (PNG) | `make pipeline-graph` | — |
+| Pipeline graph (session) | `make pipeline-graph SESSION=<name>` | — |
+| List sessions | `make list-sessions` | — |
+| Re-visualize last session | `make visualize-last` | — |
 | Clean all data | `make clean` | — |
 
+All `make` targets accept optional variables: `NODE=`, `DURATION=`, `INTERVAL=`,
+`SESSION=`, `REMOTE_IP=`, and `REMOTE_USER=`.
+
 ```bash
-uv run python src/monitor_stack.py --node /slam_toolbox --duration 120 --interval 2
-./grafana-monitor.sh --remote-ip 192.168.1.100 --node /slam_toolbox --remote-user ros
+make monitor NODE=/slam_toolbox DURATION=120 INTERVAL=2
+make monitor-remote REMOTE_IP=192.168.1.100 NODE=/slam_toolbox REMOTE_USER=ros
 ```
 
 ## monitor_stack.py
@@ -133,7 +136,12 @@ uv run python src/visualize_graph.py monitoring_sessions/<name> --no-show --outp
 uv run python src/visualize_graph.py monitoring_sessions/<name> --show
 ```
 
+Or via make:
 
+```bash
+make pipeline-graph
+make pipeline-graph SESSION=20260306_154140
+```
 
 ## Grafana Dashboard Commands
 
@@ -159,8 +167,8 @@ host-network mode). Prometheus is pre-configured to scrape `localhost:9092`.
 Results are stored and visualized **locally** on the monitoring machine.
 
 ```bash
-./grafana-monitor.sh --remote-ip 192.168.1.100
-./grafana-monitor.sh --remote-ip 192.168.1.100 --remote-user ros --node /slam_toolbox
+make monitor-remote REMOTE_IP=192.168.1.100
+make monitor-remote REMOTE_IP=192.168.1.100 REMOTE_USER=ros NODE=/slam_toolbox
 uv run python src/monitor_stack.py --remote-ip 192.168.1.100 --pid-only --duration 120
 ```
 
@@ -170,7 +178,7 @@ uv run python src/monitor_stack.py --remote-ip 192.168.1.100 --pid-only --durati
 |---------|-----|
 | No ROS2 processes found | Run `ros2 node list` to verify nodes are up |
 | Monitor exits immediately | Source ROS2: `source /opt/ros/humble/setup.bash` |
-| Visualizations not generated | Run `uv run python src/visualize_timing.py <session>/graph_timing.csv --show` manually |
+| Visualizations not generated | Run `make visualize-last` manually |
 | Permission denied | Run `uv sync` if modules are missing |
 | Remote: no data | Check SSH auth and matching `ROS_DOMAIN_ID` |
 | CPU shows e.g. "563%" | Normal — 100% = 1 core. Check **Avg Cores** column. |

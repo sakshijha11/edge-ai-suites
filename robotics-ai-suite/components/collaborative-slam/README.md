@@ -23,7 +23,7 @@ Refer to [this paper](https://arxiv.org/abs/2102.03228) for more explanation of 
 
 ### System Requirements
 
-Prepare the target system following the [official documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/robotics-ai-suite/robotics/gsg_robot/index.html).
+Prepare the target system following the [official documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/robotics-ai-suite/rvc/getstarted/prepare_system.html).
 
 We support Ubuntu 22.04 with [ROS 2 Humble](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html) and Ubuntu 24.04 with [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html).
 
@@ -93,10 +93,7 @@ After build process successfully finishes, built packages will be available in t
 You can list all built packages:
 
 ```bash
-ls humble_cslam_deb_packages/|grep -i .deb
-```
-
-```text
+$ ls humble_cslam_deb_packages/|grep -i .deb
 ros-humble-univloc-msgs_2.0.1-1_amd64.deb
 ros-humble-univloc-server_2.0.1-1_amd64.deb
 ros-humble-univloc-slam_2.0.1-1_amd64.deb
@@ -175,10 +172,7 @@ make license-check
 To see a full list of available Makefile targets:
 
 ```bash
-make help
-```
-
-```text
+$ make help
 Target               Description
 ------               -----------
 clean                Clean up all build artifacts

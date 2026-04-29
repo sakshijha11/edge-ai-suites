@@ -18,36 +18,29 @@ Follow the installation steps in each tutorial before running benchmarks:
 - [Wandering AMR Simulation](../simulation/launch-wandering-application-gazebo-sim-waffle.md)
 - [Pick & Place Simulation](../simulation/picknplace.md)
 
-## 3. Install the KPI Monitoring Package
+## 3. Get the ros-kpi Source Code
 
-Install the benchmark framework package for your ROS distribution:
-
-<!--hide_directive::::{tab-set}hide_directive-->
-<!--hide_directive:::{tab-item}hide_directive--> **Jazzy**
-<!--hide_directive:sync: jazzyhide_directive-->
+Clone only the `robotics-ai-suite` subtree (no need to clone the entire
+monorepo):
 
 ```bash
-sudo apt update
-sudo apt install ros-jazzy-benchmark-framework
+git clone --filter=blob:none --sparse \
+    https://github.com/open-edge-platform/edge-ai-suites.git
+cd edge-ai-suites
+git sparse-checkout set robotics-ai-suite
 ```
 
-<!--hide_directive:::hide_directive-->
-<!--hide_directive:::{tab-item}hide_directive--> **Humble**
-<!--hide_directive:sync: humblehide_directive-->
+Then navigate to the `ros-kpi` component:
 
 ```bash
-sudo apt update
-sudo apt install ros-humble-benchmark-framework
+cd robotics-ai-suite/components/ros-kpi
 ```
 
-<!--hide_directive:::hide_directive-->
-<!--hide_directive::::hide_directive-->
+All subsequent `make` commands in this guide should be run from this directory.
 
-This installs the KPI monitoring tools and all required system dependencies.
+## 4. Install the KPI Monitoring Stack
 
-## 4. Install uv
-
-[uv](https://docs.astral.sh/uv/) is used to manage Python dependencies:
+Install `uv` (modern Python package manager):
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -55,28 +48,15 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Then restart your shell (or open a new terminal) so that `uv` is on your `PATH`.
 
-From the benchmarking directory, install Python dependencies:
-
-<!--hide_directive::::{tab-set}hide_directive-->
-<!--hide_directive:::{tab-item}hide_directive--> **Jazzy**
-<!--hide_directive:sync: jazzyhide_directive-->
+From the component root directory, install all dependencies:
 
 ```bash
-cd /opt/ros/jazzy/benchmarking
-uv sync
+make install
 ```
 
-<!--hide_directive:::hide_directive-->
-<!--hide_directive:::{tab-item}hide_directive--> **Humble**
-<!--hide_directive:sync: humblehide_directive-->
-
-```bash
-cd /opt/ros/humble/benchmarking
-uv sync
-```
-
-<!--hide_directive:::hide_directive-->
-<!--hide_directive::::hide_directive-->
+This installs system dependencies (`sysstat`), creates a `uv` virtual
+environment with `--system-site-packages` access (required for ROS2), and
+installs `matplotlib`, `numpy`, and `psutil`.
 
 ## 5. Set Up Passwordless SSH (Remote Monitoring)
 

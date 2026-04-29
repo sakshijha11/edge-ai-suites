@@ -1,12 +1,18 @@
-# Get Started
+# Getting Started Guide
 
 This Get Started Guide explains how to install the Autonomous Mobile Robot.
 
 ## Requirements
 
+### Knowledge Requirements
+
 - You are familiar with executing Linux commands.
 - ROS 2 background strongly recommended.
-- [Hardware Requirements](./get-started/requirements_robot.md)
+
+### Hardware Requirements
+
+```{include} ../shared/requirements_robot.md
+```
 
 ## Express Setup
 
@@ -125,66 +131,6 @@ export ROS_DOMAIN_ID=42
     expected to participate in a given ROS 2 graph.
   - Ensure you use an individual ``ROS_DOMAIN_ID`` for every ROS 2 communication
     graph, in order to avoid conflicts in message handling.
-
-### 4. Express Setup: Next steps
-
-At this point, the setup is complete! For next steps, explore the [Tutorials](../dev_guide/index_tutorials.md) for ready-to-use applications and examples.
-
-## OS Image Composer Setup
-
-An alternative method for setup is to create a pre-configured OS image with ROS 2 and the appropriate repositories using the OS Image Composer tool. This approach is similar to the Express Setup convenience script above, but instead of configuring an existing system, it creates a complete bootable OS image that can be deployed to multiple systems or used for fresh installations.
-
-OS Image Composer supports creating both ISO images (for installation via USB) and raw disk images (for direct deployment to storage devices or VMs). ISO images are suitable for interactive installations, while raw images can be directly written to storage media or VMs for immediate use. If you prefer to start with a base Ubuntu installation, without needing to reimage a system, use the [Express Setup](#express-setup) or the [Step-by-step Setup](#step-by-step-setup) guide.
-
-For detailed instructions, see the [os-image-composer installation guide](https://github.com/open-edge-platform/os-image-composer/blob/main/docs/tutorial/installation.md). An abbreviated ISO image creation follows:
-
-1. Install Go (Go 1.24+ required) + build dependencies:
-
-   ```bash
-   sudo apt update && sudo apt install golang-1.24 git systemd-ukify mmdebstrap
-   ```
-
-2. Update go path since 1.24 isn't default:
-
-   ```bash
-   export PATH=$PATH:/usr/lib/go-1.24/bin
-   source ~/.bashrc
-   ```
-
-3. Clone OS Image Composer repository:
-
-   ```bash
-   git clone https://github.com/open-edge-platform/os-image-composer.git
-   cd os-image-composer
-   ```
-
-4. Build the tool (output: ``./os-image-composer``):
-
-   ```bash
-   go build -buildmode=pie -ldflags "-s -w" ./cmd/os-image-composer
-   ```
-
-5. Build the live-installer (required for ISO images):
-
-   ```bash
-   go build -buildmode=pie -o ./build/live-installer -ldflags "-s -w" ./cmd/live-installer
-   ```
-
-6. Build ISO image:
-
-   ```bash
-   sudo -E ./os-image-composer build image-templates/ubuntu24-x86_64-robotics-jazzy-iso.yml
-   ```
-
-7. Once image is successfully built, modify the below command to point to the built image location (shown after build). Change ``/dev/sdX`` to proper USB drive location (i.e. ``/dev/sdb``). Flash ISO Image to USB drive:
-
-   ```bash
-   sudo dd if=builds/robotics-jazzy-ubuntu24-24.04.iso of=/dev/sdX bs=4M status=progress conv=fsync
-   ```
-
-8. Boot from the USB drive and install the image to your system.
-
-9. **Setup complete!** Next Steps: Explore the [Tutorials](../dev_guide/index_tutorials.md) for ready-to-use applications and examples.
 
 ## Step-by-step Setup
 
@@ -329,6 +275,7 @@ echo "export ROS_DOMAIN_ID=42" >> ~/.bashrc
     expected to participate in a given ROS 2 graph.
   - Ensure you use an individual ``ROS_DOMAIN_ID`` for every ROS 2 communication
     graph, in order to avoid conflicts in message handling.
+
 
 ### 3. Set up the Autonomous Mobile Robot APT Repositories
 
@@ -522,6 +469,7 @@ The following steps will install the OpenVINO™ packages:
 
    ![configure_ros-2-openvino-node](../images/configure_ros-humble-openvino-node.png)
 
+
 #### 4.2 OpenVINO™ Re-Installation and Troubleshooting
 
 If you need to reinstall OpenVINO™ or clean your system after a failed
@@ -552,91 +500,8 @@ sudo apt install ros-humble-openvino-node
 :::
 ::::
 
-### 5. Install RealSense™ Camera SDK
 
-RealSense™ SDK is a cross-platform library for RealSense™
-depth cameras. The SDK allows depth and color streaming, and provides
-intrinsic and extrinsic calibration information. The library also offers
-synthetic streams (pointcloud, depth aligned to color and vise-versa), and a
-built-in support for record and playback of streaming sessions.
-
-RealSense™ SDK includes support for ROS and ROS 2, allowing you
-access to commonly used robotic functionality with ease.
-
-1. Register the server’s public key:
-
-   ```bash
-   sudo mkdir -p /etc/apt/keyrings
-   curl -sSf https://librealsense.realsenseai.com/Debian/librealsenseai.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/librealsenseai.gpg > /dev/null
-   ```
-
-2. Add RealSense to the list of repositories:
-
-   ```bash
-   echo "deb [signed-by=/etc/apt/keyrings/librealsenseai.gpg] https://librealsense.realsenseai.com/Debian/apt-repo `lsb_release -cs` main" | sudo tee /etc/apt/sources.list.d/librealsense.list
-   ```
-
-3. Configure APT preferences to pin the RealSense version:
-
-   This step pins the RealSense SDK to validated versions that ensure compatibility with ROS 2 and the tutorials in this documentation. This prevents automatic upgrades during ``apt upgrade`` that could introduce compatibility issues.
-
-   :::::{tab-set}
-   ::::{tab-item} **Jazzy**
-   :sync: jazzy
-
-   ```bash
-   echo -e "Package: librealsense2*\nPin: version 2.56.5-0~realsense.17055\nPin-Priority: 1001\n" | sudo tee /etc/apt/preferences.d/librealsense
-   echo -e "Package: ros-jazzy-librealsense2*\nPin: version 2.56.4*\nPin-Priority: 1001\n" | sudo tee -a /etc/apt/preferences.d/librealsense
-   echo -e "Package: ros-jazzy-realsense2*\nPin: version 4.56.4*\nPin-Priority: 1001" | sudo tee -a /etc/apt/preferences.d/librealsense
-   ```
-
-   ::::
-   ::::{tab-item} **Humble**
-   :sync: humble
-
-   ```bash
-   echo -e "Package: librealsense2*\nPin: version 2.55.1-0~realsense.12474\nPin-Priority: 1001\n" | sudo tee /etc/apt/preferences.d/librealsense
-   echo -e "Package: ros-humble-librealsense2*\nPin: version 2.56.4*\nPin-Priority: 1001\n" | sudo tee -a /etc/apt/preferences.d/librealsense
-   echo -e "Package: ros-humble-realsense2*\nPin: version 4.56.4*\nPin-Priority: 1001" | sudo tee -a /etc/apt/preferences.d/librealsense
-   ```
-
-   ::::
-   :::::
-
-4. Update your APT repository caches after setting up the repository:
-
-   ```bash
-   sudo apt update
-   ```
-
-5. Install the RealSense drivers and libraries:
-
-   :::::{tab-set}
-   ::::{tab-item} **Jazzy**
-   :sync: jazzy
-
-   ```bash
-   sudo apt-get install -y --allow-downgrades ros-jazzy-librealsense2
-   sudo apt install librealsense2-dkms
-   sudo apt install librealsense2
-   ```
-
-   ::::
-   ::::{tab-item} **Humble**
-   :sync: humble
-
-   ```bash
-   sudo apt-get install -y --allow-downgrades ros-humble-librealsense2
-   sudo apt install librealsense2-dkms
-   sudo apt install librealsense2
-   ```
-
-   ::::
-   :::::
-
-   > **Note:** The pinned version ensures stability across tutorials. To upgrade in the future, update the version in `/etc/apt/preferences.d/librealsense` before installing.
-
-### 6. Install Autonomous Mobile Robot Deb packages
+### 5. Install Autonomous Mobile Robot Deb packages
 
 This section details steps to install Autonomous Mobile Robot Deb packages.
 
@@ -848,6 +713,69 @@ This section details steps to install Autonomous Mobile Robot Deb packages.
      (``ros-jazzy-collab-slam-lze``) as described above.
 
 
+### 6. Install RealSense™ Camera SDK
+
+RealSense™ SDK is a cross-platform library for RealSense™
+depth cameras. The SDK allows depth and color streaming, and provides
+intrinsic and extrinsic calibration information. The library also offers
+synthetic streams (pointcloud, depth aligned to color and vise-versa), and a
+built-in support for record and playback of streaming sessions.
+
+RealSense™ SDK includes support for ROS and ROS 2, allowing you
+access to commonly used robotic functionality with ease.
+
+1. Register the server’s public key:
+
+   ```bash
+   sudo mkdir -p /etc/apt/keyrings
+   curl -sSf https://librealsense.realsenseai.com/Debian/librealsenseai.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/librealsenseai.gpg > /dev/null
+   ```
+
+2. Add RealSense to the list of repositories:
+
+   ```bash
+   echo "deb [signed-by=/etc/apt/keyrings/librealsenseai.gpg] https://librealsense.realsenseai.com/Debian/apt-repo `lsb_release -cs` main" | sudo tee /etc/apt/sources.list.d/librealsense.list
+   ```
+
+3. Update your APT repository caches after setting up the repository:
+
+   ```bash
+   sudo apt update
+   ```
+
+4. Configure APT preferences to pin the RealSense version:
+
+   This step pins the RealSense SDK to validated versions that ensure compatibility with ROS 2 and the tutorials in this documentation. This prevents automatic upgrades during ``apt upgrade`` that could introduce compatibility issues.
+
+   :::::{tab-set}
+   ::::{tab-item} **Jazzy**
+   :sync: jazzy
+
+   ```bash
+   echo -e "Package: librealsense2*\nPin: version 2.56.5-0~realsense.17055\nPin-Priority: 1001" | sudo tee /etc/apt/preferences.d/librealsense
+   ```
+
+   ::::
+   ::::{tab-item} **Humble**
+   :sync: humble
+
+   ```bash
+   echo -e "Package: librealsense2*\nPin: version 2.55.1-0~realsense.12474\nPin-Priority: 1001" | sudo tee /etc/apt/preferences.d/librealsense
+   ```
+
+   ::::
+   :::::
+
+5. Install the RealSense drivers and libraries:
+
+   ```bash
+   sudo apt install librealsense2-dkms
+   sudo apt install librealsense2
+   ```
+
+   > **Note:** The pinned version ensures stability across tutorials. To upgrade in the future, update the version in `/etc/apt/preferences.d/librealsense` before installing.
+
+
 ### 7. Install the Intel® NPU Driver on Intel® Core™ Ultra Processors
 
 If you want to run OpenVINO™ inferencing applications on the NPU device
@@ -925,19 +853,16 @@ To install the Intel® NPU driver, complete the following steps:
    and that the device belongs to the ``render`` group:
 
    ```bash
-   ls -lah /dev/accel/accel0
+   $ ls -lah /dev/accel/accel0
    crw-rw---- 1 root render 261, 0 Jul  1 13:10 /dev/accel/accel0
    ```
+
 
 ### 8. Reboot to load latest Linux kernel and firmware
 
 ```bash
 sudo reboot
 ```
-
-### 9. Next steps
-
-At this point, the setup is complete! For next steps, explore the [Tutorials](../dev_guide/index_tutorials.md) for ready-to-use applications and examples.
 
 ## Optional - Enabling Intel® GPU
 
@@ -1010,6 +935,7 @@ development.
 
 6. Reboot the system to allow the latest Linux kernel to boot.
 
+
 ## Installation Troubleshooting
 
 ### Support Forum
@@ -1041,14 +967,16 @@ If the APT package manager is unable to connect to the repositories, follow thes
       no_proxy="localhost,127.0.0.1,127.0.0.0/8"
       ```
 
-     After setting the proxy values in `/etc/apt/apt.conf.d/proxy.conf` and `/etc/environment`
-     you will have to reboot the device, so these settings become effective.
+    After setting the proxy values in `/etc/apt/apt.conf.d/proxy.conf` and `/etc/environment`
+    you will have to reboot the device, so these settings become effective.
+
 
 <!--hide_directive
 :::{toctree}
 :hidden:
 
-get-started/requirements_robot.md
+../dev_guide/requirements
 
 :::
 hide_directive-->
+

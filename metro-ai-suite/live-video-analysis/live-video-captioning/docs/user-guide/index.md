@@ -27,8 +27,6 @@ The key features are:
 
 **Object-Detection-Model Support**: Optionally integrate YOLO-based detection models into the pipeline to enable object detection and frame filtering.
 
-**Helm Deployment**: Deploy the full stack on Kubernetes with the bundled Helm chart and configurable override values.
-
 ## Use Cases
 
 **Real-time Video Analytics**: Monitor security cameras, industrial equipment, or public spaces with AI-powered scene understanding and automatic captioning.
@@ -43,11 +41,12 @@ The key features are:
 :::{toctree}
 :hidden:
 
-get-started.md
-how-to-guides.md
-how-it-works.md
-api-reference.md
-known-issues.md
+get-started
+how-it-works
+alert-mode
+object-detection-pipeline
+api-reference
+known-issues
 Release Notes <release-notes.md>
 
 :::

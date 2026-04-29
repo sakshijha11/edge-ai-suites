@@ -286,7 +286,6 @@ const HLSPlayer: React.FC<Props> = ({ streamUrl, videoFile, mode, camera }) => {
             height="100%"
             style={{ border: 'none' }}
             title="Stream Content"
-            allowFullScreen
           />
         ) : streamUrl ? (
           <video 

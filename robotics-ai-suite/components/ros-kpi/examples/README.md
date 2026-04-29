@@ -34,16 +34,16 @@ Step-by-step guide to debug performance problems.
 
 ```bash
 # Quick check (fastest)
-uv run python src/monitor_stack.py --duration 30
+make quick-check
 
 # Monitor specific node
-uv run python src/monitor_stack.py --node /your_node
+make monitor NODE=/your_node
 
 # Debug with a named session
 uv run python src/monitor_stack.py --node /your_node --session debug_test
 
 # List all previous monitoring sessions
-uv run python src/monitor_stack.py --list-sessions
+make list-sessions
 ```
 
 ## Creating Custom Examples

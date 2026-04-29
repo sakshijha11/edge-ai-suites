@@ -34,10 +34,13 @@ This interactive menu guides you through:
 - Quick health checks
 - Starting Grafana dashboards
 
-### Option 2: Direct Invocation
+### Option 2: Make Shortcuts
 ```bash
+# Quick start
+make start          # Same as ./quickstart
+
 # Quick health check (30 seconds)
-uv run python src/monitor_stack.py --duration 30
+make quick
 ```
 
 ## Common Tasks
@@ -51,14 +54,14 @@ uv run python src/monitor_stack.py --duration 30
 
 **Command line:**
 ```bash
-# Monitor all nodes
-uv run python src/monitor_stack.py
+# Monitor all nodes for 60 seconds
+make monitor
 
-# Monitor specific node for 120 seconds
-uv run python src/monitor_stack.py --node /your_node_name --duration 120
+# Monitor specific node
+make monitor NODE=/your_node_name DURATION=120
 
 # Quick 30-second check
-uv run python src/monitor_stack.py --duration 30
+make quick
 ```
 
 ### View Dashboards
@@ -85,7 +88,7 @@ make grafana-stop
 ## Results Location
 
 All results are saved in timestamped folders:
-```text
+```
 monitoring_sessions/
 └── YYYYMMDD_HHMMSS/
     ├── graph_timing.csv         # Topic timing data
@@ -97,13 +100,13 @@ monitoring_sessions/
 View results:
 ```bash
 # List all sessions
-uv run python src/monitor_stack.py --list-sessions
+make list-sessions
 
-# Re-visualize a session
-uv run python src/visualize_timing.py <session>/graph_timing.csv --delays --frequencies --show
+# Re-visualize last session
+make visualize-last
 
 # Analyze specific session
-uv run python src/visualize_timing.py monitoring_sessions/20260305_123456/graph_timing.csv --summary
+make analyze-session SESSION=20260305_123456
 ```
 
 ## Advanced Usage
@@ -111,24 +114,24 @@ uv run python src/visualize_timing.py monitoring_sessions/20260305_123456/graph_
 ### Remote Monitoring
 ```bash
 # Monitor remote system
-uv run python src/monitor_stack.py --remote-ip 192.168.1.100
+make monitor-remote REMOTE_IP=192.168.1.100
 ```
 
 ### Custom Parameters
 ```bash
 # Extended monitoring (5 minutes)
-uv run python src/monitor_stack.py --duration 300
+make monitor-long DURATION=300
 
 # Wandering benchmark (5 runs)
-for i in $(seq 1 5); do bash src/wandering_run.sh --goals 0 --timeout 180; done
+make wandering-benchmark RUNS=5 TIMEOUT=180
 
 # Pick-n-Place benchmark (5 runs)
-for i in $(seq 1 5); do bash src/picknplace_run.sh --timeout 300; done
+make picknplace-benchmark RUNS=5
 ```
 
-### All Infrastructure Targets
+### All Available Commands
 ```bash
-make help           # Show infrastructure targets (install, grafana, clean, lint)
+make help           # Show all commands
 ```
 
 ## Troubleshooting
@@ -183,15 +186,15 @@ ros2 launch nav2_bringup tb3_simulation_launch.py
 ### Example 2: Compare Before/After Optimization
 ```bash
 # Before optimization
-uv run python src/monitor_stack.py --node /my_node --duration 120
+make monitor NODE=/my_node DURATION=120
 
 # Note the session name, then optimize your code
 
 # After optimization
-uv run python src/monitor_stack.py --node /my_node --duration 120
+make monitor NODE=/my_node DURATION=120
 
-# Compare averages
-uv run python src/view_average.py --runs 5
+# Compare
+make compare-sessions
 ```
 
 ## Documentation
@@ -202,7 +205,7 @@ uv run python src/view_average.py --runs 5
 ## Support
 
 For issues or questions:
-1. Run `make help` to see infrastructure targets
+1. Check `make help` for all available commands
 2. Review documentation in `docs/` folder
 3. Run `make check-deps` to verify installation
 
@@ -211,6 +214,7 @@ For issues or questions:
 **TL;DR:**
 ```bash
 ./quickstart    # Interactive menu - easiest way!
-uv run python src/monitor_stack.py --duration 30  # Quick health check
-make help       # Show infrastructure targets
+make quick      # Quick health check
+make start      # Same as ./quickstart
+make help       # Show all commands
 ```

@@ -35,13 +35,15 @@ as follows:
 
 ## Install the Clearpath Robotics Software Packages
 
-Install the ROS 2 development tools, which comprises the compilers
+1. Install the ROS 2 development tools, which comprises the compilers
 and other tools to build ROS 2 packages. See the official
-[ROS 2 Installation Instructions](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html):
+[ROS 2 Installation Instructions](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html):
 
    ```bash
    sudo apt-get install ros-dev-tools
    ```
+
+## Install the Clearpath Robotics Software Packages.
 
 See the [Package Install](https://docs.clearpathrobotics.com/docs/ros/installation/robot/#package-install)
 section of the Clearpath Robotics documentation. You can install the software through one of these methods:
@@ -54,14 +56,14 @@ section of the Clearpath Robotics documentation. You can install the software th
 ## Create Your Robot Configuration
 
 This section shows how to create the ``robot.yaml`` configuration
-file for your Jackal robot with the RealSense™ camera D435i. Ensure
+file for your Jackal robot with the Intel® RealSense™ camera D435i. Ensure
 to complete the
 [Install the Clearpath Robotics Software Packages](#install-the-clearpath-robotics-software-packages)
 steps.
 
-### Identify the Serial Number of your RealSense™ Camera
+### Identify the Serial Number of your Intel® RealSense™ Camera
 
-You need to include the serial number of the RealSense™ camera to the
+You need to include the serial number of the Intel® RealSense™ camera to the
 ``robot.yaml`` file.
 
 > **Note:** Do not run ``lsusb -v`` to get the serial number because the serial number displayed might differ from the true serial number.
@@ -165,13 +167,13 @@ configured your ``robot.yaml`` file, you can run
 the Clearpath Robotics services have started the Jackal-specific ROS 2
 nodes, so that the related ROS 2 topics are published.
 
-### Add your RealSense™ Camera D435i to the Robot YAML File
+### Add your Intel® RealSense™ Camera D435i to the Robot YAML File
 
 You need to define a camera in the ``sensors`` section of your robot.yaml file.
 
 1. The [Sensors/Cameras](https://docs.clearpathrobotics.com/docs/ros/config/yaml/sensors/cameras)
    section of the Clearpath Robotics documentation shows an example of the
-   data structure that defines a RealSense™ camera instance.
+   data structure that defines an Intel® RealSense™ camera instance.
 
    Intel recommends adding the following ``camera`` configuration as the first device in the
    ``sensors`` section. This configuration has been tested with
@@ -218,7 +220,7 @@ You need to define a camera in the ``sensors`` section of your robot.yaml file.
 
    - The ``serial_no`` has been replaced with the actual serial number of the
      camera, which can be identified as described in the
-     [Identify RealSense Camera Serial Number](#identify-the-serial-number-of-your-realsense-camera) section.
+     [Identify Intel RealSense Camera Serial Number](#identify-the-serial-number-of-your-intel-realsense-camera) section.
 
    - The following features have been enabled:
      ``enable_infra1``, ``align_depth.enable``, ``enable_sync``, and ``initial_reset``.
@@ -266,7 +268,7 @@ You need to define a camera in the ``sensors`` section of your robot.yaml file.
 
    ![frames_jackal_2024-02-28](../../../../images/frames_jackal_2024-02-28.png)
 
-1. Complete TF2 tree of the Jackal robot with RealSense™ camera.
+1. Complete TF2 tree of the Jackal robot with Intel® RealSense™ camera.
    To increase the figure, right-click on the image and open the image
    in a new browser tab. The following figure shows the TF2 tree of the Jackal robot,
    with a detailed view on the camera_0_link:

@@ -1,6 +1,6 @@
 # Release Notes
 
-## Intel® OEP SDK Manager EAS-2026.0.0 Release
+## Intel® Metro SDK Manager EAS-2026.0.0 Release
 
 ### New 
 
@@ -15,13 +15,13 @@
     - Improved examples demonstrating current best practices and advanced techniques.
 
 
-## Intel® OEP SDK Manager EAS-2025.2.0 Release
+## Intel® Metro SDK Manager EAS-2025.2.0 Release
 
 - **Installer** - https://docs.openedgeplatform.intel.com/2025.2/edge-ai-suites/metro-sdk-manager/index.html
 - **Unified SDK Management**
 Provides a single interface to manage installation and updates for:
-    - OEP Vision AI SDK
-    - OEP Gen AI SDK
+    - Metro Vision AI SDK
+    - Metro Gen AI SDK
     - Visual AI Demo Kit
 - **Simplified Installation**
     - One-line command for quick setup of SDKs and all dependencies.

@@ -133,14 +133,16 @@ this sample application in Kubernetes environment:
            - weld_anomaly_detector.py
    ```
 
-2. Upload your new UDF package to the `time-series-analytics-microservice` pod:
+2. Copy your new UDF package to the `time-series-analytics-microservice` pod:
 
    ```bash
    cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-multimodal/configs/time-series-analytics-microservice # path relative to git clone folder
-   rm -f weld_anomaly_detector.tar
-   tar cf weld_anomaly_detector.tar udfs/ models/ tick_scripts/
+   mkdir -p weld_anomaly_detector
+   cp -r models tick_scripts udfs weld_anomaly_detector/.
 
-   curl -X POST https://localhost:30001/ts-api/udfs/package -F "file=@weld_anomaly_detector.tar" -k
+   POD_NAME=$(kubectl get pods -n multimodal-sample-app -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep deployment-time-series-analytics-microservice | head -n 1)
+
+   kubectl cp weld_anomaly_detector $POD_NAME:/tmp/ -n multimodal-sample-app
    ```
 
 > **Note:**
@@ -187,9 +189,9 @@ curl -k https://localhost:30001/dsps-api/pipelines/user_defined_pipelines/weld_d
 Run the following command to activate the UDF deployment package:
 
 ```bash
-cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-multimodal/configs/time-series-analytics-microservice
-
-curl -s -X POST https://localhost:30001/ts-api/config   -H 'accept: application/json'   -H 'Content-Type: application/json'   -d @config.json   -k
+curl -k -X 'GET' \
+'https://localhost:30001/ts-api/config?restart=true' \
+-H 'accept: application/json'
 ```
 
 ## Step 6: Verify the Results

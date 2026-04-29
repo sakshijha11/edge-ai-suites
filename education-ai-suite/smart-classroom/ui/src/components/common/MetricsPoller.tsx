@@ -9,9 +9,7 @@ const POLL_MS = 3000;
 const MetricsPoller: React.FC = () => {
   const sessionId = useAppSelector(s => s.ui.sessionId);
   const aiProcessing = useAppSelector(s => s.ui.aiProcessing);
-  const csProcessing = useAppSelector(s => s.ui.csProcessing);
   const summaryStatus = useAppSelector(s => s.summary.status);
-  const monitoringPaused = useAppSelector(s => s.ui.monitoringPaused);
   const dispatch = useAppDispatch();
 
   const timeoutRef = useRef<number | null>(null);
@@ -19,44 +17,36 @@ const MetricsPoller: React.FC = () => {
   const lastSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const effectiveSessionId = sessionId;
-
-    if (lastSessionRef.current !== effectiveSessionId) {
+    if (lastSessionRef.current !== sessionId) {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       finalFetchDoneRef.current = false;
-      lastSessionRef.current = effectiveSessionId;
+      lastSessionRef.current = sessionId ?? null;
     }
 
-    if (!effectiveSessionId) {
+    if (!sessionId) {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       finalFetchDoneRef.current = false;
       return; // keep previous metrics visible
     }
 
-    // Stop polling when monitoring has been paused by the duration timer
-    if (monitoringPaused) {
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-      return;
-    }
-
-    if (summaryStatus === 'done' && !aiProcessing && !csProcessing) {
+    if (summaryStatus === 'done') {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       if (!finalFetchDoneRef.current) {
         (async () => {
-          try { dispatch(setMetrics(await getResourceMetrics(effectiveSessionId))); } catch {}
+          try { dispatch(setMetrics(await getResourceMetrics(sessionId))); } catch {}
           finally { finalFetchDoneRef.current = true; }
         })();
       }
       return; 
     }
 
-    const shouldPoll = aiProcessing || csProcessing || summaryStatus === 'streaming';
+    const shouldPoll = aiProcessing || summaryStatus === 'streaming';
     if (!shouldPoll) return;
 
     let cancelled = false;
     const poll = async () => {
       if (cancelled) return;
-      try { dispatch(setMetrics(await getResourceMetrics(effectiveSessionId))); } catch (e) { console.warn('Metrics poll error:', e); }
+      try { dispatch(setMetrics(await getResourceMetrics(sessionId))); } catch (e) { console.warn('Metrics poll error:', e); }
       finally { if (!cancelled) timeoutRef.current = window.setTimeout(poll, POLL_MS); }
     };
     poll();
@@ -65,7 +55,7 @@ const MetricsPoller: React.FC = () => {
       cancelled = true;
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     };
-  }, [sessionId, aiProcessing, csProcessing, summaryStatus, monitoringPaused, dispatch]);
+  }, [sessionId, aiProcessing, summaryStatus, dispatch]);
 
   return null;
 };

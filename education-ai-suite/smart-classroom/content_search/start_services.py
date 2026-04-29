@@ -45,12 +45,12 @@ def _load_config_to_env(config_path: str = "config.yaml") -> None:
         chroma = cs.get("chromadb", {})
         _set("CHROMA_HOST", chroma.get("host", "127.0.0.1"))
         _set("CHROMA_PORT", chroma.get("port", "9090"))
-        _set("CHROMA_DATA_DIR", chroma.get("data_dir", "./data/chroma_data"))
+        _set("CHROMA_DATA_DIR", chroma.get("data_dir", "./chroma_data"))
         _set("CHROMA_EXE", chroma.get("chroma_exe"))
 
         # Local Storage
         storage = cs.get("storage", {})
-        _set("STORAGE_DATA_DIR", storage.get("data_dir", "./data/local_storage"))
+        _set("STORAGE_DATA_DIR", storage.get("data_dir", "./providers/local_storage/data"))
         _set("STORAGE_BUCKET", storage.get("bucket", "content-search"))
 
         # VLM
@@ -74,13 +74,11 @@ def _load_config_to_env(config_path: str = "config.yaml") -> None:
 
         # Reranker
         reranker = ingest.get("reranker", {})
+        _set("RERANKER_ENABLED", str(reranker.get("enabled", False)).lower())
         _set("RERANKER_MODEL", reranker.get("model", "BAAI/bge-reranker-large"))
         _set("RERANKER_DEVICE", reranker.get("device", "CPU"))
         _set("RERANKER_DEDUP_TIME_THRESHOLD", str(reranker.get("dedup_time_threshold", 5)))
         _set("RERANKER_OVERFETCH_MULTIPLIER", str(reranker.get("overfetch_multiplier", 3)))
-
-        # Video Summarization
-        _set("VIDEO_SUMMARIZATION_ENABLED", str(cs.get("video_summarization_enabled", True)).lower())
 
         # Main App Portal
         _set("CS_HOST", cs.get("host_addr", "127.0.0.1"))
@@ -179,14 +177,6 @@ def main() -> None:
         requested.extend(p.strip().lower() for p in v.split(",") if p.strip())
     requested = list(dict.fromkeys(requested))
 
-    # Skip VLM and video preprocess services when video summarization is globally disabled
-    vs_enabled = _env("VIDEO_SUMMARIZATION_ENABLED", "true").lower() in ("true", "1", "yes")
-    if not vs_enabled:
-        skipped = [s for s in ("vlm", "preprocess") if s in requested]
-        if skipped:
-            print(f"[launcher] VIDEO_SUMMARIZATION_ENABLED=false, skipping: {', '.join(skipped)}")
-            requested = [s for s in requested if s not in ("vlm", "preprocess")]
-
     logs_dir = CONTENT_SEARCH_DIR / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -202,7 +192,7 @@ def main() -> None:
             "cmd": [chroma_exe, "run",
                     "--host", _env("CHROMA_HOST", "127.0.0.1"),
                     "--port", _env("CHROMA_PORT", "9090"),
-                    "--path", _env("CHROMA_DATA_DIR", "./data/chroma_data")],
+                    "--path", _env("CHROMA_DATA_DIR", "./chroma_data")],
             "cwd": CONTENT_SEARCH_DIR,
             "health": (_env("CHROMA_HOST", "127.0.0.1"), int(_env("CHROMA_PORT", "9090")), ""),
             "health_timeout": 60,

@@ -34,12 +34,12 @@ global:
   vssStackTag: ''
 images:
   vdmsDataprep:
-    repository: vdms-dataprep
+    repository: intel/vdms-dataprep
 
 imageOverride:
-  registry: ''
-  repository: ''
-  tag: ''
+  registry: 'amr-fm-registry.caas.intel.com/esh-user/egai/'
+  repository: 'vdms-dataprep'
+  tag: '1.3.3-rc1'
 
 replicaCount: 1
 

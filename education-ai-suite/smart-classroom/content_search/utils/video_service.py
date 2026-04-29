@@ -20,14 +20,7 @@ class VideoService:
         file_key: str, 
         bucket_name: str, 
         tags: list = None,
-        prompt: str = (
-            "Please summarize this classroom video segment. "
-            "Focus on the teaching activities, lecture topics, "
-            "key knowledge points being explained, "
-            "any content written or displayed on the blackboard/screen, "
-            "student behaviors (e.g. raising hands, taking notes, discussing, distracted, leaving the classroom), "
-            "and notable student-teacher interactions."
-        ),
+        prompt: str = "Please summarize this video.",
         chunk_duration: int = None
     ):
         url = f"{self.base_url}/preprocess"
