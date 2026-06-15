@@ -80,6 +80,11 @@ services:
     image: intel/hl-ai-mdpnp:${TAG:-1.0.1}
     container_name: mdpnp
     network_mode: "host"
+    environment:
+      # Restrict RTI Connext discovery to loopback so mdpnp <-> dds-bridge
+      # discover each other without relying on UDP multicast, which is dropped
+      # by restrictive host firewalls (e.g. EMT-S default iptables policy).
+      - NDDS_DISCOVERY_PEERS=builtin.udpv4://127.0.0.1
     depends_on:
         patient-monitoring-assets:
           condition: service_completed_successfully
@@ -100,6 +105,10 @@ services:
       - GRPC_HOST=localhost
       - GRPC_PORT=50051
       - MDPNP_DEVICE=${MDPNP_DEVICE:-}
+      # Restrict RTI Connext discovery to loopback so mdpnp <-> dds-bridge
+      # discover each other without relying on UDP multicast, which is dropped
+      # by restrictive host firewalls (e.g. EMT-S default iptables policy).
+      - NDDS_DISCOVERY_PEERS=builtin.udpv4://127.0.0.1
     env_file:
         - ./configs/device.env   
     depends_on:
