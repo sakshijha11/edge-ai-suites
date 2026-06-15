@@ -213,13 +213,28 @@ def stage_model() -> None:
     model_path = Path(target_dir) / model_filename
     source_path = Path(source_model_path)
 
+    if not source_path.as_posix().startswith("/models/downloads/"):
+        raise ValueError(
+            f"source_model_path must be inside the mounted PVC under "
+            f"/models/downloads/ (got {source_path}). For Helm, stage the file "
+            f"into the models-pvc volume; host paths from outside the pod are "
+            f"not visible."
+        )
+
     if not source_path.exists():
         raise FileNotFoundError(
             f"Missing manually staged rPPG model at {source_path}. "
-            "Please place the source model before running make run."
+            "Place a non-empty MTTS-CAN HDF5 file at this path before running "
+            "the assets job (e.g. via `kubectl cp` into the models-pvc)."
         )
 
-    if model_path.exists():
+    if source_path.stat().st_size == 0:
+        raise ValueError(
+            f"Staged rPPG model at {source_path} is empty (0 bytes). "
+            "Re-download the MTTS-CAN model and stage a complete file."
+        )
+
+    if model_path.exists() and model_path.stat().st_size > 0:
         logger.info(f"Model already exists: {model_path}")
         size_mb = model_path.stat().st_size / (1024 * 1024)
         logger.info(f"  Size: {size_mb:.1f} MB")
