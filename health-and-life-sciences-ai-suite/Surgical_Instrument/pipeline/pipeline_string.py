@@ -9,6 +9,7 @@ time without introducing new pipeline shapes:
 
     SCHEDULING_POLICY   -> gvadetect scheduling-policy=<val>  (e.g. "latency")
     BATCH_SIZE          -> gvadetect batch-size=<N>           (e.g. 1)
+    INFERENCE_REQUESTS  -> gvadetect nireq=<N>                (e.g. 4)
     AUTOVIDEOSINK       -> render popup + set sink sync=true|false
     DETECT              -> include/skip the gvadetect stage
 """
@@ -27,6 +28,8 @@ PRE_DETECT_QUEUE_FILE   = "queue max-size-buffers=1 max-size-bytes=0 max-size-ti
 POST_DETECT_QUEUE_FILE  = "queue max-size-buffers=1 max-size-bytes=0 max-size-time=0"
 PRE_DETECT_QUEUE_LIVE   = "queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream"
 POST_DETECT_QUEUE_LIVE  = "queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream"
+PRE_DETECT_QUEUE_LIVE_ALL_FRAMES  = "queue max-size-buffers=60 max-size-bytes=0 max-size-time=0"
+POST_DETECT_QUEUE_LIVE_ALL_FRAMES = "queue max-size-buffers=60 max-size-bytes=0 max-size-time=0"
 
 
 def _build_source(
@@ -57,6 +60,9 @@ def _build_source(
         source_props = [
             f"serial={camera_serial}",
             f"pixel-format={pixel_format}",
+            f"frame-rate={target_fps}",
+            "width=1280",
+            "height=720",
         ]
         if basler_fixed_camera:
             source_props.extend(["exposure-auto=off", "gain-auto=off"])
@@ -68,8 +74,9 @@ def _build_source(
             f"gencamsrc {' '.join(source_props)}",
             "bayer2rgb",
             "videoscale",
+            "video/x-raw,width=1280,height=720",
             "videoconvert",
-            "video/x-raw,width=1280,height=720,format=NV12",
+            "video/x-raw,format=NV12",
         ], "ie"
     raise ValueError(f"unsupported source_kind: {kind!r} (want file|basler)")
 
@@ -88,6 +95,8 @@ def build(
     video_sink: str = "ximagesink",
     scheduling_policy: str | None = None,
     batch_size: int | None = None,
+    inference_requests: int = 4,
+    process_all_frames: bool = True,
     sink_sync: bool | None = None,
     enable_detect: bool = True,
     enable_watermark: bool = True,
@@ -124,8 +133,16 @@ def build(
     )
 
     is_live = source_kind == "basler"
-    if sink_sync is None:
-        sink_sync_str = "false" if is_live else "true"
+    if is_live:
+        # Live camera source: always sync=false. The camera IS the clock —
+        # forcing the sink to pace to the pipeline clock (as `sync=true` does)
+        # throttles throughput to ~15 fps even when the source runs at 60 fps
+        # and the pipeline is neither CPU- nor bandwidth-bound. The friendly
+        # `AUTOVIDEOSINK=true` Makefile alias sets PIPELINE_SINK_SYNC=true,
+        # which we deliberately ignore here for live sources.
+        sink_sync_str = "false"
+    elif sink_sync is None:
+        sink_sync_str = "true"
     else:
         sink_sync_str = "true" if sink_sync else "false"
 
@@ -144,17 +161,23 @@ def build(
     gvadetect_parts = [
         f"gvadetect model={model_arg} device={dev} threshold={threshold}",
         f"pre-process-backend={pre_proc}",
-        "nireq=1",
+        f"nireq={max(1, inference_requests)}",
         "ie-config=PERFORMANCE_HINT=LATENCY",
     ]
+    if is_live and not process_all_frames:
+        gvadetect_parts.append("no-block=true")
     if scheduling_policy:
         gvadetect_parts.append(f"scheduling-policy={scheduling_policy}")
     if batch_size is not None and batch_size > 0:
         gvadetect_parts.append(f"batch-size={batch_size}")
     gvadetect = " ".join(gvadetect_parts)
 
-    pre_q  = PRE_DETECT_QUEUE_LIVE  if is_live else PRE_DETECT_QUEUE_FILE
-    post_q = POST_DETECT_QUEUE_LIVE if is_live else POST_DETECT_QUEUE_FILE
+    if is_live and process_all_frames:
+        pre_q = PRE_DETECT_QUEUE_LIVE_ALL_FRAMES
+        post_q = POST_DETECT_QUEUE_LIVE_ALL_FRAMES
+    else:
+        pre_q  = PRE_DETECT_QUEUE_LIVE  if is_live else PRE_DETECT_QUEUE_FILE
+        post_q = POST_DETECT_QUEUE_LIVE if is_live else POST_DETECT_QUEUE_FILE
 
     if display_view:
         # The VA pipeline keeps frames in VAMemory (NV12). Download to system
@@ -188,6 +211,9 @@ if __name__ == "__main__":  # smoke: `python3 pipeline_string.py [file|basler]`
     sched = os.environ.get("SCHEDULING_POLICY", "").strip() or None
     batch_raw = os.environ.get("BATCH_SIZE", "").strip()
     batch = int(batch_raw) if batch_raw.isdigit() else None
+    inference_requests_raw = os.environ.get("INFERENCE_REQUESTS", "4").strip()
+    inference_requests = int(inference_requests_raw) if inference_requests_raw.isdigit() else 4
+    process_all_frames = os.environ.get("PROCESS_ALL_FRAMES", "1").strip().lower() not in {"0", "false", "no"}
     detect_enabled = os.environ.get("DETECT", "1").strip().lower() not in {"0", "false", "no"}
     watermark_enabled = os.environ.get("WATERMARK", "1").strip().lower() not in {"0", "false", "no"}
     minimal = os.environ.get("MINIMAL", "0").strip().lower() not in {"0", "false", "no"}
@@ -208,6 +234,8 @@ if __name__ == "__main__":  # smoke: `python3 pipeline_string.py [file|basler]`
             sink_sync=True,
             scheduling_policy=sched,
             batch_size=batch,
+            inference_requests=inference_requests,
+            process_all_frames=process_all_frames,
             enable_detect=detect_enabled,
             enable_watermark=watermark_enabled,
             minimal=minimal,

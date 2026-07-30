@@ -44,6 +44,12 @@ try:
     BATCH_SIZE = int(_batch_size_raw) if _batch_size_raw else None
 except ValueError:
     BATCH_SIZE = None
+_inference_requests_raw = os.environ.get("INFERENCE_REQUESTS", "4").strip()
+try:
+    INFERENCE_REQUESTS = int(_inference_requests_raw) if _inference_requests_raw else 4
+except ValueError:
+    INFERENCE_REQUESTS = 4
+PROCESS_ALL_FRAMES = os.environ.get("PROCESS_ALL_FRAMES", "1").strip().lower() not in {"0", "false", "no"}
 DETECT_ENABLED = os.environ.get("DETECT", "1").strip().lower() not in {"0", "false", "no"}
 WATERMARK_ENABLED = os.environ.get("WATERMARK", "1").strip().lower() not in {"0", "false", "no"}
 MINIMAL = os.environ.get("MINIMAL", "0").strip().lower() not in {"0", "false", "no"}
@@ -114,6 +120,8 @@ def _spawn(
         video_sink=VIDEO_SINK,
         scheduling_policy=SCHEDULING_POLICY or None,
         batch_size=BATCH_SIZE,
+        inference_requests=INFERENCE_REQUESTS,
+        process_all_frames=PROCESS_ALL_FRAMES,
         sink_sync=sink_sync,
         enable_detect=DETECT_ENABLED,
         enable_watermark=WATERMARK_ENABLED,
@@ -188,12 +196,14 @@ def _spawn(
         BASLER_PIXEL_FORMAT,
     )
     log.info(
-        "[pipeline] knobs: detect=%s watermark=%s minimal=%s scheduling_policy=%s batch_size=%s sink_sync=%s",
+        "[pipeline] knobs: detect=%s watermark=%s minimal=%s scheduling_policy=%s batch_size=%s inference_requests=%s process_all_frames=%s sink_sync=%s",
         DETECT_ENABLED,
         WATERMARK_ENABLED,
         MINIMAL,
         SCHEDULING_POLICY or "<unset>",
         BATCH_SIZE,
+        INFERENCE_REQUESTS,
+        PROCESS_ALL_FRAMES,
         PIPELINE_SINK_SYNC or "<default>",
     )
 

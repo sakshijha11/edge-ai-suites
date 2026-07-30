@@ -18,6 +18,7 @@ backend_mvp/
 **/*.pdf
 
 # Tracer / benchmark / profiling output
+metrics/*-generated.json
 **/tracer_logs/
 **/per_frame/
 **/per_element_traced/

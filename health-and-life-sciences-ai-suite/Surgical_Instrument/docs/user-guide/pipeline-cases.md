@@ -27,6 +27,8 @@ has a documented default.
 | `MINIMAL` | `0` | `1` collapses the pipeline to `source ! videoconvert ! sink` (nothing else) |
 | `SCHEDULING_POLICY` | *(unset)* | if set, appended as `scheduling-policy=<val>` on `gvadetect` (e.g. `latency`) |
 | `BATCH_SIZE` | *(unset)* | if set, appended as `batch-size=<N>` on `gvadetect` (e.g. `1`) |
+| `INFERENCE_REQUESTS` | `4` | appended as `nireq=<N>` on `gvadetect`; raise for GPU throughput |
+| `PROCESS_ALL_FRAMES` | `1` | `1` processes every frame with blocking queues; `0` enables live frame skipping (`no-block=true` + leaky queues) |
 | `AUTOVIDEOSINK` | *(unset)* | `true` -> popup + `sink sync=true`; `false` -> headless `fakesink` |
 | `BASLER_PIXEL_FORMAT` | `bayerbggr` | Bayer pixel format passed to `gencamsrc` (e.g. `bayerbggr`, `bayerrggb`) |
 | `DETECTION_DEVICE` | `GPU` | initial device for `/api/device` (`CPU`/`GPU`/`NPU`) |
@@ -133,7 +135,9 @@ The primary demo shape. Live Basler → tuned `gvadetect` → `gvawatermark`
 in the README are captured from.
 
 ```bash
-make up SOURCE_KIND=basler SOURCE_ARG=40067928 DETECT=1 AUTOVIDEOSINK=true SCHEDULING_POLICY=latency BATCH_SIZE=1
+make up SOURCE_KIND=basler SOURCE_ARG=40067928 DETECT=1 AUTOVIDEOSINK=true \
+  SCHEDULING_POLICY=latency BATCH_SIZE=1 \
+  PROCESS_ALL_FRAMES=1 INFERENCE_REQUESTS=4
 
 
 # To start the pipeline run the following command:
@@ -145,18 +149,20 @@ Resulting spawn (single `gst-launch-1.0` via `gencamsrc`):
 ```text
 gst-launch-1.0 \
     gencamsrc serial=40067928 pixel-format=bayerbggr \
+              frame-rate=60 width=1280 height=720 \
   ! bayer2rgb \
   ! videoscale \
+  ! video/x-raw,width=1280,height=720 \
   ! videoconvert \
-  ! video/x-raw,width=1280,height=720,format=NV12 \
+  ! video/x-raw,format=NV12 \
   ! identity \
-  ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream \
+  ! queue max-size-buffers=60 max-size-bytes=0 max-size-time=0 \
   ! gvadetect model=/models/yolo11n_polyp/best_openvino_model/best.xml \
               device=GPU threshold=0.5 \
               pre-process-backend=ie \
-              nireq=1 ie-config=PERFORMANCE_HINT=LATENCY \
+              nireq=4 ie-config=PERFORMANCE_HINT=LATENCY \
               scheduling-policy=latency batch-size=1 \
-  ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream \
+  ! queue max-size-buffers=60 max-size-bytes=0 max-size-time=0 \
   ! gvawatermark \
   ! gvafpscounter interval=1 \
   ! videoconvert \
@@ -167,7 +173,7 @@ Confirmed live output (from container INFO log):
 
 ```text
 [pipeline] knobs: detect=True watermark=True minimal=False
-              scheduling_policy=latency batch_size=1 sink_sync=true
+              scheduling_policy=latency batch_size=1 inference_requests=4 process_all_frames=True sink_sync=true
 status:running  device:GPU  source_kind:basler  source_arg:40067928  display_view:true
 FpsCounter (avg 22.20s): 58.83 fps
 latency window (last 200 samples):
@@ -185,8 +191,10 @@ Bench verification (2026-07-29, headless `fakesink` run):
 Notes
 - `WATERMARK` is not set on the command line and defaults to `1`, so
   `gvawatermark` is present. Case 3 shows how to toggle it off.
-- `SCHEDULING_POLICY=latency` and `BATCH_SIZE=1` push `gvadetect` into
-  single-frame low-latency mode; drop either to compare the effect.
+- `PROCESS_ALL_FRAMES=1` keeps `no-block=true` out of `gvadetect` and uses
+  blocking queues, so FPS reflects frames actually processed by inference.
+- `INFERENCE_REQUESTS=4` gives GPU inference more in-flight requests. Raise
+  or lower it while watching `gvafpscounter` and latency.
 
 ---
 
@@ -208,10 +216,12 @@ Resulting spawn (single `gst-launch-1.0` via `gencamsrc`):
 ```text
 gst-launch-1.0 \
     gencamsrc serial=40067928 pixel-format=bayerbggr \
+              frame-rate=60 width=1280 height=720 \
   ! bayer2rgb \
   ! videoscale \
+  ! video/x-raw,width=1280,height=720 \
   ! videoconvert \
-  ! video/x-raw,width=1280,height=720,format=NV12 \
+  ! video/x-raw,format=NV12 \
   ! videoconvert \
   ! ximagesink sync=true
 ```
@@ -253,6 +263,7 @@ preview window (no bounding-box overlay) while still running the same
 make up SOURCE_KIND=basler SOURCE_ARG=40067928 \
         DETECT=1 WATERMARK=0 \
         SCHEDULING_POLICY=latency BATCH_SIZE=1 \
+        PROCESS_ALL_FRAMES=1 INFERENCE_REQUESTS=4 \
         AUTOVIDEOSINK=true
 
 # To start the pipeline run the following command:
@@ -264,18 +275,20 @@ Resulting spawn (single `gst-launch-1.0` via `gencamsrc`):
 ```text
 gst-launch-1.0 \
     gencamsrc serial=40067928 pixel-format=bayerbggr \
+              frame-rate=60 width=1280 height=720 \
   ! bayer2rgb \
   ! videoscale \
+  ! video/x-raw,width=1280,height=720 \
   ! videoconvert \
-  ! video/x-raw,width=1280,height=720,format=NV12 \
+  ! video/x-raw,format=NV12 \
   ! identity \
-  ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream \
+  ! queue max-size-buffers=60 max-size-bytes=0 max-size-time=0 \
   ! gvadetect model=/models/yolo11n_polyp/best_openvino_model/best.xml \
               device=GPU threshold=0.5 \
               pre-process-backend=ie \
-              nireq=1 ie-config=PERFORMANCE_HINT=LATENCY \
+              nireq=4 ie-config=PERFORMANCE_HINT=LATENCY \
               scheduling-policy=latency batch-size=1 \
-  ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream \
+  ! queue max-size-buffers=60 max-size-bytes=0 max-size-time=0 \
   ! gvafpscounter interval=1 \
   ! videoconvert \
   ! ximagesink sync=true
@@ -285,7 +298,7 @@ Confirmed live output (from container INFO log):
 
 ```text
 [pipeline] knobs: detect=True watermark=False minimal=False
-              scheduling_policy=latency batch_size=1 sink_sync=true
+              scheduling_policy=latency batch_size=1 inference_requests=4 process_all_frames=True sink_sync=true
 status:running  device:GPU  source_kind:basler  source_arg:40067928  display_view:true
 ```
 
@@ -342,6 +355,7 @@ make up \
   SOURCE_KIND=basler SOURCE_ARG=40067928 \
   DETECT=1 AUTOVIDEOSINK=true \
   SCHEDULING_POLICY=latency BATCH_SIZE=1 \
+  PROCESS_ALL_FRAMES=1 INFERENCE_REQUESTS=4 \
   BASLER_FIXED_CAMERA=1 BASLER_EXPOSURE_US=5000 BASLER_GAIN=0 \
   PIPELINE_CAMERA_CORES=2 PIPELINE_GST_CORES=3-4 \
   PIPELINE_CAMERA_RT_PRIORITY=80 PIPELINE_GST_RT_PRIORITY=70
@@ -360,20 +374,22 @@ curl -X POST http://localhost:8080/api/start
 ```text
 taskset -c 3-4 chrt -f 70 gst-launch-1.0 \
     gencamsrc serial=40067928 pixel-format=bayerbggr \
+        frame-rate=60 width=1280 height=720 \
               exposure-auto=off gain-auto=off \
               exposure-time=5000 gain=0 \
   ! bayer2rgb \
   ! videoscale \
+  ! video/x-raw,width=1280,height=720 \
   ! videoconvert \
-  ! video/x-raw,width=1280,height=720,format=NV12 \
+  ! video/x-raw,format=NV12 \
   ! identity \
-  ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream \
+  ! queue max-size-buffers=60 max-size-bytes=0 max-size-time=0 \
   ! gvadetect model=/models/yolo11n_polyp/best_openvino_model/best.xml \
               device=GPU threshold=0.5 \
               pre-process-backend=ie \
-              nireq=1 ie-config=PERFORMANCE_HINT=LATENCY \
+              nireq=4 ie-config=PERFORMANCE_HINT=LATENCY \
               scheduling-policy=latency batch-size=1 \
-  ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=16000000 leaky=downstream \
+  ! queue max-size-buffers=60 max-size-bytes=0 max-size-time=0 \
   ! gvawatermark \
   ! gvafpscounter interval=1 \
   ! videoconvert \
@@ -386,7 +402,7 @@ Container INFO log knobs lines:
 [pipeline] knobs: cam_cores=2 cam_prio=80 gst_cores=3-4 gst_prio=70
                   basler_fixed=True basler_exposure_us=5000 basler_gain=0 basler_pixel_format=bayerbggr
 [pipeline] knobs: detect=True watermark=True minimal=False
-                  scheduling_policy=latency batch_size=1 sink_sync=true
+                  scheduling_policy=latency batch_size=1 inference_requests=4 process_all_frames=True sink_sync=true
 ```
 
 ### Knob reference for Case 4
@@ -400,6 +416,8 @@ Container INFO log knobs lines:
 | `BASLER_FIXED_CAMERA` | `0` | `1` disables auto-exposure/gain and applies the fixed values below |
 | `BASLER_EXPOSURE_US` | *(unset)* | Fixed ExposureTime in µs (only when `BASLER_FIXED_CAMERA=1`) |
 | `BASLER_GAIN` | *(unset)* | Fixed sensor gain in dB (only when `BASLER_FIXED_CAMERA=1`) |
+| `INFERENCE_REQUESTS` | `4` | Number of in-flight `gvadetect` inference requests (`nireq`) |
+| `PROCESS_ALL_FRAMES` | `1` | `1` blocks instead of dropping frames; `0` enables frame-skipping preview mode |
 | `PIPELINE_MINIMAL_DISPLAY` | *(unset)* | `1` is a short alias for `AUTOVIDEOSINK=true` with `sync=false` |
 
 Notes
@@ -428,7 +446,7 @@ docker exec surgical-pipeline chrt   -p  $PID    # expect: SCHED_FIFO, prio 70
 [pipeline] knobs: cam_cores=2 cam_prio=80 gst_cores=3-4 gst_prio=70
                   basler_fixed=True basler_exposure_us=5000 basler_gain=0 basler_pixel_format=bayerbggr
 [pipeline] knobs: detect=True watermark=True minimal=False
-                  scheduling_policy=latency batch_size=1 sink_sync=true
+                  scheduling_policy=latency batch_size=1 inference_requests=4 process_all_frames=True sink_sync=true
 status:running  device:GPU  source_kind:basler  source_arg:40067928  display_view:true
 FpsCounter (avg 177s): 60.00 fps
 latency window (last 200 samples):
