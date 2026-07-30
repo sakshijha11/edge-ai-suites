@@ -7,7 +7,37 @@ SHELL := /bin/bash
 # ---- Tunables (override on the CLI: `make up UI_HOST_PORT=9000`) -----------
 UI_HOST_PORT       ?= 8080
 DETECTION_DEVICE   ?= GPU
+# Normalize to upper-case so `DETECTION_DEVICE=cpu` and `DETECTION_DEVICE=CPU`
+# both reach the backend/pipeline as "CPU" (which is what the code compares).
+# `override` is required because command-line overrides otherwise beat a plain
+# `:=` reassignment in the file.
+override DETECTION_DEVICE := $(shell echo $(DETECTION_DEVICE) | tr '[:lower:]' '[:upper:]')
 COMPOSE            ?= docker compose
+# Runtime pipeline knobs (overridable via `make up VAR=...`).
+SOURCE_KIND           ?= file
+SOURCE_ARG            ?=
+SCHEDULING_POLICY     ?=
+BATCH_SIZE            ?=
+DETECT                ?= 1
+WATERMARK             ?= 1
+MINIMAL               ?= 0
+PIPELINE_SINK_SYNC    ?=
+PIPELINE_DISPLAY_VIEW ?= 0
+PIPELINE_VIDEO_SINK   ?= autovideosink
+
+# Friendly alias: `make up AUTOVIDEOSINK=true` -> DISPLAY_VIEW=1 + SINK_SYNC=true
+#                 `make up AUTOVIDEOSINK=false` -> DISPLAY_VIEW=0 + SINK_SYNC=false
+AUTOVIDEOSINK ?=
+ifneq ($(strip $(AUTOVIDEOSINK)),)
+  ifeq ($(strip $(AUTOVIDEOSINK)),true)
+    PIPELINE_DISPLAY_VIEW := 1
+    PIPELINE_SINK_SYNC    := true
+  else
+    PIPELINE_DISPLAY_VIEW := 0
+    PIPELINE_SINK_SYNC    := false
+  endif
+endif
+
 # Render/video GIDs are auto-detected from the host so /dev/dri passthrough
 # works without editing this file. Override on the CLI if needed.
 RENDER_GID         ?= $(shell getent group render 2>/dev/null | cut -d: -f3)
@@ -87,6 +117,10 @@ up:  ## First-boot: build images + start stack. May take 20-35 min if no cached 
 	@$(MAKE) --no-print-directory _camera-override
 	@$(MAKE) --no-print-directory port-audit
 	UI_HOST_PORT=$(UI_HOST_PORT) DETECTION_DEVICE=$(DETECTION_DEVICE) \
+	SOURCE_KIND=$(SOURCE_KIND) SOURCE_ARG=$(SOURCE_ARG) \
+	SCHEDULING_POLICY=$(SCHEDULING_POLICY) BATCH_SIZE=$(BATCH_SIZE) \
+	DETECT=$(DETECT) MINIMAL=$(MINIMAL) WATERMARK=$(WATERMARK) PIPELINE_SINK_SYNC=$(PIPELINE_SINK_SYNC) \
+	PIPELINE_DISPLAY_VIEW=$(PIPELINE_DISPLAY_VIEW) PIPELINE_VIDEO_SINK=$(PIPELINE_VIDEO_SINK) \
 	RENDER_GID=$(RENDER_GID) VIDEO_GID=$(VIDEO_GID) \
 		$(COMPOSE) $(_COMPOSE_FILES) up -d --build
 	@echo "[up] First boot may take 20-35 min while YOLO11n trains on the iGPU."
@@ -103,6 +137,10 @@ run:  ## Fast subsequent boot: start stack without rebuild. Requires cached IR.
 	@$(MAKE) --no-print-directory _camera-override
 	@$(MAKE) --no-print-directory port-audit
 	UI_HOST_PORT=$(UI_HOST_PORT) DETECTION_DEVICE=$(DETECTION_DEVICE) \
+	SOURCE_KIND=$(SOURCE_KIND) SOURCE_ARG=$(SOURCE_ARG) \
+	SCHEDULING_POLICY=$(SCHEDULING_POLICY) BATCH_SIZE=$(BATCH_SIZE) \
+	DETECT=$(DETECT) MINIMAL=$(MINIMAL) WATERMARK=$(WATERMARK) PIPELINE_SINK_SYNC=$(PIPELINE_SINK_SYNC) \
+	PIPELINE_DISPLAY_VIEW=$(PIPELINE_DISPLAY_VIEW) PIPELINE_VIDEO_SINK=$(PIPELINE_VIDEO_SINK) \
 	RENDER_GID=$(RENDER_GID) VIDEO_GID=$(VIDEO_GID) \
 		$(COMPOSE) $(_COMPOSE_FILES) up -d
 	$(_print_urls)
@@ -120,10 +158,29 @@ CAMERA_OVERRIDE ?= docker-compose.camera.override.yaml
 _COMPOSE_FILES   = -f docker-compose.yaml $(if $(wildcard $(CAMERA_OVERRIDE)),-f $(CAMERA_OVERRIDE),)
 
 .PHONY: list-cameras
-list-cameras:  ## List /dev/video* devices visible on this host
+list-cameras:  ## List /dev/video* + Basler serials (SOURCE_ARG values)
 	@ls -la /dev/video* 2>/dev/null || echo "[list-cameras] no /dev/video* present"
 	@echo ""
 	@lsusb -d 2676: 2>/dev/null || echo "[list-cameras] no Basler USB device present"
+	@echo ""
+	@echo "[list-cameras] Basler serials (SOURCE_ARG candidates):"
+	@if python3 -c "import pypylon" >/dev/null 2>&1; then \
+		python3 scripts/list_basler.py; \
+	elif docker ps --format '{{.Names}}' 2>/dev/null | grep -qx surgical-pipeline; then \
+		docker exec surgical-pipeline python3 -c "from pypylon import pylon;\
+ devs = pylon.TlFactory.GetInstance().EnumerateDevices();\
+ print('  (none)') if not devs else [print(f'  serial={d.GetSerialNumber()}  model={d.GetModelName()}') for d in devs]" \
+			2>/dev/null || echo "  (pypylon query failed inside surgical-pipeline)"; \
+	elif docker image inspect surgical-pipeline:dev >/dev/null 2>&1; then \
+		docker run --rm --entrypoint python3 \
+			--device /dev/bus/usb:/dev/bus/usb \
+			-v $(PWD)/scripts/list_basler.py:/opt/list_basler.py:ro \
+			surgical-pipeline:dev /opt/list_basler.py \
+			2>/dev/null || echo "  (pypylon query failed in one-shot container)"; \
+	else \
+		echo "  (host pypylon missing; install with 'python3 -m pip install pypylon'"; \
+		echo "   or run 'make up' once to build the pipeline image and re-run this target)"; \
+	fi
 
 # Internal: (re)generate the camera override if any /dev/video* exist, else
 # remove any stale override so `_COMPOSE_FILES` stays base-only. Idempotent.
