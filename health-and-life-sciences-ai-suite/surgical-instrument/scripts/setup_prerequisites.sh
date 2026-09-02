@@ -13,9 +13,9 @@
 # It is idempotent: every package/repo/group is checked before it is added.
 #
 # Usage:
-#   ./setup.sh              # interactive, apt will prompt where required
-#   ./setup.sh -y           # unattended (assume-yes to apt)
-#   ./setup.sh --dry-run    # print what would be installed, change nothing
+#   ./scripts/setup_prerequisites.sh              # interactive, apt will prompt where required
+#   ./scripts/setup_prerequisites.sh -y           # unattended (assume-yes to apt)
+#   ./scripts/setup_prerequisites.sh --dry-run    # print what would be installed, change nothing
 #
 # Exit code is non-zero on any hard failure. A final [OK]/[MISSING] summary is
 # printed at the end so operators can see at a glance what still needs

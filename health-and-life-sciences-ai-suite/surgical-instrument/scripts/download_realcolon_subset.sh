@@ -7,7 +7,7 @@
 # Figshare article: https://figshare.com/articles/dataset/REAL-Colon_dataset/22202866
 #
 # Usage:
-#   bash download_realcolon_subset.sh [target-dir]
+#   bash scripts/download_realcolon_subset.sh [target-dir]
 #     target-dir defaults to datasets/REAL-Colon/raw
 
 set -euo pipefail

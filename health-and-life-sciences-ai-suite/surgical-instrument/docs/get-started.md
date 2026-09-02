@@ -34,11 +34,11 @@ iHD VA-API), and configures a proxy only if you provide one:
 
 ```bash
 # No proxy (typical):
-./setup.sh
+./scripts/setup_prerequisites.sh
 
 # Behind a corporate proxy, export it first:
 HTTP_PROXY=http://your-proxy:port HTTPS_PROXY=http://your-proxy:port \
-  ./setup.sh
+  ./scripts/setup_prerequisites.sh
 ```
 
 Log out and back in afterward (or run `newgrp docker`) so docker-group

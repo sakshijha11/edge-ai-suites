@@ -23,9 +23,9 @@ need: base tools, Docker Engine + Compose v2, and the Intel client GPU stack
 (Level Zero + OpenCL + iHD VA-API) from the official `intel-graphics` apt repo.
 
 ```bash
-./setup.sh          # interactive; apt may prompt for confirmation
-./setup.sh -y       # assume-yes to apt
-./setup.sh --dry-run
+./scripts/setup_prerequisites.sh          # interactive; apt may prompt for confirmation
+./scripts/setup_prerequisites.sh -y       # assume-yes to apt
+./scripts/setup_prerequisites.sh --dry-run
 ```
 
 Then verify:
@@ -48,7 +48,7 @@ Devices, figshare article `22202866`). The full corpus is 60 studies (~880 GB).
 The training subset we use is 7 studies (~74 GB).
 
 ```bash
-./download_realcolon_subset.sh    # 7 studies, ~74 GB, to datasets/REAL-Colon/raw/
+./scripts/download_realcolon_subset.sh    # 7 studies, ~74 GB, to datasets/REAL-Colon/raw/
 ```
 
 For the full corpus, use the vendor script instead:

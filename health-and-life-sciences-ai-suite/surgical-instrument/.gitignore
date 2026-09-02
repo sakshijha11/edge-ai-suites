@@ -1,3 +1,7 @@
 __pycache__/
 models/
 videos/
+
+# local dev symlinks (not for commit)
+.venv-backend
+datasets/REAL-Colon/raw
