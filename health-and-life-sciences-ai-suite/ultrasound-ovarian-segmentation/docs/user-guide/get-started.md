@@ -1,13 +1,13 @@
 # Get Started
 
 This guide takes you from a fresh clone to a running segmentation pop-up on a
-Windows machine with an Intel Core Ultra (Intel Arc iGPU + NPU).
+Windows machine with an Intel Core Ultra (Intel Arc iGPU).
 
 ## Prerequisites
 
-- Windows 11 with an Intel Core Ultra processor (Intel Arc iGPU, optional NPU).
-- Up-to-date Intel graphics and NPU drivers (the iGPU/NPU must appear in Task
-  Manager and be visible to OpenVINO).
+- Windows 11 with an Intel Core Ultra processor (Intel Arc iGPU).
+- Up-to-date Intel graphics drivers (the iGPU must appear in Task Manager and be
+  visible to OpenVINO).
 - Python 3.11 (64-bit) on `PATH`.
 - PowerShell. If scripts are blocked, allow them for the current session only:
 
@@ -38,6 +38,13 @@ The app does not ship a trained model. Produce the OpenVINO IR the app loads
 .\prepare_model.ps1 -Train -Verify   # train on the Intel iGPU first, then export
 ```
 
+To use the optional prompted SAM-256 arch instead, add `-Arch sam` (it needs the
+stock SAM ViT-B weights downloaded first):
+
+```powershell
+.\prepare_model.ps1 -Arch sam -Verify
+```
+
 Full walkthrough — dataset, backbone, training, export, expected Dice — in
 [Model Preparation](./get-started/model-preparation.md).
 
@@ -47,15 +54,21 @@ Full walkthrough — dataset, backbone, training, export, expected Dice — in
 .\run.ps1 -Source file -Input C:\path\to\clip.mp4 -Device GPU
 ```
 
-A window opens with the original frame on the left and the tumor-mask overlay on
-the right, plus a HUD showing inference FPS/latency and live iGPU utilization.
-Press `q` or `Esc` to quit.
+A window opens showing each frame with the tumor-mask overlay, plus a HUD
+showing inference FPS/latency and live iGPU utilization. Press `q` or `Esc` to
+quit, or close the window.
 
 Other sources:
 
 ```powershell
 .\run.ps1 -Source folder -Input C:\path\to\frames -Device GPU
 .\run.ps1 -Source webcam -Input 0 -Device GPU
+```
+
+Run the prompted SAM-256 arch (after preparing its IRs):
+
+```powershell
+.\run.ps1 -Arch sam -Source file -Input C:\path\to\clip.mp4 -Device GPU
 ```
 
 ## 4. Confirm the GPU KPI

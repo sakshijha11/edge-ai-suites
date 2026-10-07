@@ -26,11 +26,14 @@ See [Model Preparation](./get-started/model-preparation.md).
 
 ## Device not available / falls back to CPU
 
-If `--device GPU` (or `NPU`) is not in OpenVINO's available devices, the app logs
-a warning and falls back to CPU. Check that:
+If `--device GPU` is not in OpenVINO's available devices, the app logs a warning
+and falls back to CPU. Check that:
 
-- Intel graphics / NPU drivers are installed and current.
-- The device appears in Task Manager and `venv\Scripts\python.exe -c "import openvino as ov; print(ov.Core().available_devices)"` lists `GPU` / `NPU`.
+- Intel graphics drivers are installed and current.
+- The device appears in Task Manager and `venv\Scripts\python.exe -c "import openvino as ov; print(ov.Core().available_devices)"` lists `GPU`.
+
+> **NPU:** neither model (DS2Net or SAM) is supported on the NPU. Passing
+> `--device NPU` logs a notice and uses the GPU (or CPU) instead.
 
 ## No pop-up window appears
 
@@ -51,6 +54,22 @@ Almost always one of:
 - `--res` does not match the resolution the IR was exported at.
 - Dataset paths are wrong — `eval.py` could not find `images/` or
   `annotations/` under `--data`, or `val.txt` lists the wrong stems.
+
+## SAM arch: IR not found or low Dice
+
+With `-Arch sam` the app loads three IRs (YOLO bbox, SAM encoder, SAM decoder).
+If any is missing, prepare them — and confirm the stock SAM ViT-B weights were
+downloaded to `models\sam_vit_b_01ec64.pth` first:
+
+```powershell
+.\prepare_model.ps1 -Arch sam -Verify
+```
+
+A low end-to-end Dice (well under 0.82) usually means the encoder IR was exported
+from random weights (missing `--weights models\sam256_stockft.pth`) or the
+encoder was fine-tuned with the wrong preprocessing — the fine-tune and the
+runtime must both scale images by `/255` (no mean/std). See
+[Model Preparation](./get-started/model-preparation.md#sam-256-arch).
 
 ## GPU KPI prints `OVER`
 

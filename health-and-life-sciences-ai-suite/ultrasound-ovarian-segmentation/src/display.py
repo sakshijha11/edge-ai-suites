@@ -40,13 +40,16 @@ class Presenter:
         self.scale = float(scale)
         self.alpha = float(alpha)
         self.color = tuple(int(c) for c in color)
+        self.box_color = (0, 255, 0)  # bbox prompt overlay (SAM instance kind)
         self.headless = headless
         self._rate = _Rate()
         self._writer = None
+        self._writer_size = (0, 0)
         if record and src is not None:
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
             fps = src.fps if src.fps > 0 else 30.0
-            self._writer = cv2.VideoWriter(record, fourcc, fps, (src.width, src.height))
+            self._writer_size = (int(src.width), int(src.height))
+            self._writer = cv2.VideoWriter(record, fourcc, fps, self._writer_size)
             log.info("recording annotated output -> %s", record)
         if not headless:
             cv2.namedWindow(window, cv2.WINDOW_NORMAL)
@@ -68,7 +71,9 @@ class Presenter:
 
     def _hud(self, frame: np.ndarray, hud: dict) -> np.ndarray:
         self._rate.tick()
-        lines = [f"display {self._rate.fps:4.1f} fps   inference {hud['inf_fps']:4.1f} fps "
+        arch = {"ds2net": "DS2Net", "sam": "SAM-256"}.get(hud.get("arch", ""), hud.get("arch", ""))
+        head = f"[{arch}]  " if arch else ""
+        lines = [f"{head}display {self._rate.fps:4.1f} fps   inference {hud['inf_fps']:4.1f} fps "
                  f"({hud['inf_ms']:4.0f} ms)"]
         if hud.get("gpu_available"):
             verdict = "PASS" if hud["within_cap"] else "OVER"
@@ -85,17 +90,41 @@ class Presenter:
             y += 26
         return frame
 
-    def show(self, frame: np.ndarray, mask: np.ndarray | None, hud: dict) -> int:
-        """Draw overlay + HUD, present, and return the pressed key (-1 if none)."""
-        out = self._hud(self._overlay(frame, mask), hud)
+    def _draw_boxes(self, frame: np.ndarray, boxes) -> None:
+        for x0, y0, x1, y1 in boxes:
+            cv2.rectangle(frame, (int(x0), int(y0)), (int(x1), int(y1)), self.box_color, 2)
+
+    def show(self, frame: np.ndarray, result, hud: dict) -> int:
+        """Draw overlay + HUD, present, and return the pressed key (-1 if none).
+
+        ``result`` is a :class:`~src.segmenters.Result` (or ``None``). The mask is
+        filled for every model; instance models (SAM) also get their prompt box
+        drawn. Returns 27 (Esc) if the user closed the window via the [X] button,
+        so the caller stops the run instead of inferring against a dead window.
+        """
+        mask = result.mask if result is not None else None
+        boxes = result.boxes if result is not None else []
+        out = self._overlay(frame, mask)
+        if boxes:
+            self._draw_boxes(out, boxes)
+        out = self._hud(out, hud)
         if self._writer is not None:
-            self._writer.write(out)
+            rec = out
+            if (out.shape[1], out.shape[0]) != self._writer_size:
+                rec = cv2.resize(out, self._writer_size, interpolation=cv2.INTER_AREA)
+            self._writer.write(rec)
         if self.headless:
             return -1
         if self.scale != 1.0:
             out = cv2.resize(out, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_LINEAR)
         cv2.imshow(self.window, out)
-        return cv2.waitKey(1) & 0xFF
+        key = cv2.waitKey(1) & 0xFF
+        try:
+            if cv2.getWindowProperty(self.window, cv2.WND_PROP_VISIBLE) < 1:
+                return 27  # window closed via the [X] button
+        except cv2.error:
+            return 27
+        return key
 
     def close(self) -> None:
         if self._writer is not None:

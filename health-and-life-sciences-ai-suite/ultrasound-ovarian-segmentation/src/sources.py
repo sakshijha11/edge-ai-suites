@@ -108,17 +108,21 @@ class FolderSource:
         self.fps = float(fps) if fps > 0 else 10.0
 
     def read(self) -> np.ndarray | None:
-        if self._i >= len(self._files):
-            if not self._loop:
-                return None
-            self._i = 0
-        path = self._files[self._i]
-        self._i += 1
-        img = cv2.imread(str(path))
-        if img is None:
-            log.warning("skipping unreadable image: %s", path)
-            return self.read()
-        return img
+        n = len(self._files)
+        for _ in range(n):  # bounded scan: skip unreadable images without recursing
+            if self._i >= n:
+                if not self._loop:
+                    return None
+                self._i = 0
+            path = self._files[self._i]
+            self._i += 1
+            img = cv2.imread(str(path))
+            if img is None:
+                log.warning("skipping unreadable image: %s", path)
+                continue
+            return img
+        log.error("no readable images in folder (all %d entries failed to decode)", n)
+        return None
 
     def close(self) -> None:
         return None

@@ -29,12 +29,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import numpy as np  # noqa: E402
-
 from src.config import parse_config  # noqa: E402
 from src.display import Presenter  # noqa: E402
 from src.gpu_governor import GpuGovernor  # noqa: E402
-from src.segmenter import Segmenter  # noqa: E402
+from src.segmenters import Result, create_segmenter  # noqa: E402
 from src.sources import create_source  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(name)s: %(message)s")
@@ -66,21 +64,21 @@ class Rate:
         return self._lat_ms
 
 
-class LatestMask:
-    """Thread-safe most-recent segmentation mask + timestamp."""
+class LatestResult:
+    """Thread-safe most-recent segmentation result + timestamp."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._mask: np.ndarray | None = None
+        self._result: Result | None = None
         self._ts_ns = 0
 
-    def set(self, mask: np.ndarray, ts_ns: int) -> None:
+    def set(self, result: Result, ts_ns: int) -> None:
         with self._lock:
-            self._mask, self._ts_ns = mask, ts_ns
+            self._result, self._ts_ns = result, ts_ns
 
-    def get(self) -> tuple[np.ndarray | None, int]:
+    def get(self) -> tuple[Result | None, int]:
         with self._lock:
-            return self._mask, self._ts_ns
+            return self._result, self._ts_ns
 
 
 def _put_latest(q: "queue.Queue", item) -> None:
@@ -131,11 +129,11 @@ def inference_loop(seg, governor, infer_q, latest, inf_rate) -> None:
             continue
         t0 = time.perf_counter()
         try:
-            mask = seg.infer(frame)
+            result = seg.infer(frame)
         except Exception as exc:  # noqa: BLE001
             log.warning("inference error: %s", exc)
             continue
-        latest.set(mask, time.perf_counter_ns())
+        latest.set(result, time.perf_counter_ns())
         inf_rate.tick((time.perf_counter() - t0) * 1000.0)
         # Self-throttle: if iGPU utilization approaches the cap, the governor
         # returns a positive per-frame delay that paces this loop down.
@@ -152,7 +150,7 @@ def main() -> int:
     log.info("source: %s (%dx%d @ %.1f fps, live=%s)",
              src.name, src.width, src.height, src.fps, src.is_live)
 
-    seg = Segmenter(cfg.model, device=cfg.device, res=cfg.res)
+    seg = create_segmenter(cfg)
 
     governor = GpuGovernor(cap_pct=cfg.gpu_cap, enabled=not cfg.no_governor)
     governor.start()
@@ -164,7 +162,7 @@ def main() -> int:
 
     display_q: queue.Queue = queue.Queue(maxsize=1)
     infer_q: queue.Queue = queue.Queue(maxsize=1)
-    latest = LatestMask()
+    latest = LatestResult()
     cap_rate, inf_rate = Rate(), Rate()
 
     threads = [
@@ -186,9 +184,10 @@ def main() -> int:
             except queue.Empty:
                 if last_frame is None:
                     continue
-            mask, _ = latest.get()
+            result, _ = latest.get()
             gov = governor.snapshot()
             hud = {
+                "arch": cfg.model_arch,
                 "inf_fps": inf_rate.fps,
                 "inf_ms": inf_rate.latency_ms,
                 "gpu_peak": gov.get("peak_pct", 0.0),
@@ -198,7 +197,7 @@ def main() -> int:
                 "throttle_ms": gov.get("throttle_delay_ms", 0.0),
                 "within_cap": gov.get("within_cap", True),
             }
-            key = presenter.show(last_frame, mask, hud)
+            key = presenter.show(last_frame, result, hud)
             if key in (27, ord("q")):
                 break
     except KeyboardInterrupt:

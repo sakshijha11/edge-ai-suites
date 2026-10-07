@@ -1,41 +1,39 @@
 # Copyright © 2026 Intel Corporation. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Dice / IoU of an exported SegFormer IR on the MMOTU-2D val split.
+"""End-to-end Dice / IoU of the built SAM-256 pipeline on the MMOTU-2D val split.
 
-Verifies the IR produced by ``export.py`` before it is used in a demo. Promptless:
-the IR takes the whole image, no bbox / detector. The per-image pipeline mirrors
-the app segmenter (``src/segmenters/ds2net.py``) exactly, so the Dice reported
-here is what the live overlay reflects:
+Verifies the three IRs produced by ``export_yolo.py`` / ``export_encoder.py`` /
+``export_decoder.py`` before they are used in a demo. This runs the EXACT runtime
+pipeline the app uses — it drives ``src/segmenters/sam.py:SamSegmenter`` — so the
+Dice reported here is what the live overlay reflects:
 
-    PIL RGB -> resize(res,res) -> ImageNet-normalise -> IR -> logits[1,2,res/4,res/4]
-    -> bilinear upsample logits to (res,res) -> argmax -> mask@res
-    -> NEAREST resize to native -> Dice / IoU vs native GT ({stem}_binary.PNG).
+    frame -> YOLOv8n@320 bbox -> SAM encoder@256 -> multimask decoder ->
+    argmax-by-IoU -> mask (native) -> Dice / IoU vs native GT ({stem}_binary.PNG).
 
-Reference result at res 256: Dice mean 0.8657 / median 0.922, IoU mean 0.7913
-over the 469-image val split. An IR exported from random weights scores ~0.
+Reference result at res 256: end-to-end Dice mean 0.8207 / IoU 0.7394 over the
+469-image MMOTU-2D val split. The KPI gate passes when mean Dice >= 0.80.
 
 Usage (Windows, inside the app venv):
 
-    python -m backend.bootstrap.eval ^
-        --ir models/ds2net_segformer_b5_256/model.xml --res 256 ^
-        --data data/OTU_2d --device GPU
+    python -m backend.bootstrap.sam.eval --device GPU --data data/OTU_2d
 """
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
-import openvino as ov
-from PIL import Image
 
-# ImageNet normalisation, matching train.py / export.py / the app segmenter.
-IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1)
-IMAGENET_STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
+# Allow `import src...` when run as `python -m backend.bootstrap.sam.eval` from
+# the app root (and when run directly).
+_APP_ROOT = Path(__file__).resolve().parents[3]
+if str(_APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(_APP_ROOT))
 
 
 def dice_iou(pred_bin: np.ndarray, gt_bin: np.ndarray) -> tuple[float, float]:
-    """(Dice, IoU) for two binary masks: 2*inter/(|p|+|g|), inter/union."""
     p = pred_bin.astype(bool)
     g = gt_bin.astype(bool)
     inter = int(np.logical_and(p, g).sum())
@@ -80,19 +78,19 @@ def summarize(vals: list[float]) -> dict:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Promptless SegFormer Dice/IoU eval on MMOTU-2D val.")
-    ap.add_argument("--ir", required=True, help="SegFormer IR model.xml (static [1,3,res,res]).")
+    ap = argparse.ArgumentParser(description="End-to-end SAM-256 Dice/IoU eval on MMOTU-2D val.")
+    ap.add_argument("--sam-encoder", default="models/sam_encoder_256_stockft/encoder.xml")
+    ap.add_argument("--sam-decoder", default="models/sam_decoder_256_multimask/decoder.xml")
+    ap.add_argument("--sam-yolo", default="models/yolo_mmotu_320/yolov8n_mmotu.xml")
     ap.add_argument("--device", default="GPU", choices=["CPU", "GPU", "NPU"])
     ap.add_argument("--data", default="data/OTU_2d")
     ap.add_argument("--val-list", default=None, help="Defaults to <data>/val.txt.")
-    ap.add_argument("--res", type=int, default=256)
+    ap.add_argument("--res", type=int, default=256, help="Encoder input resolution.")
     ap.add_argument("--limit", type=int, default=0, help="If >0, eval at most this many images (smoke).")
-    ap.add_argument("--out-csv", default="reports/dice_segformer.csv")
+    ap.add_argument("--kpi", type=float, default=0.80, help="Mean-Dice pass gate.")
+    ap.add_argument("--out-csv", default="reports/dice_sam_e2e_256.csv")
     args = ap.parse_args()
 
-    ir = Path(args.ir)
-    if not ir.exists():
-        raise FileNotFoundError(f"IR missing: {ir}")
     data = Path(args.data)
     images_dir = data / "images"
     masks_dir = data / "annotations"
@@ -103,14 +101,15 @@ def main() -> None:
     if args.limit > 0:
         stems = stems[: args.limit]
 
-    core = ov.Core()
-    model = core.read_model(str(ir))
-    compiled = core.compile_model(model, args.device)
-    out_port = compiled.outputs[0]
-    print(f"[eval] device={args.device} ir={ir}")
-    print(f"[eval] val stems={len(stems)} data={data}")
+    try:
+        from src.segmenters.sam import SamSegmenter
+    except Exception as exc:  # pragma: no cover - env guard
+        raise SystemExit(f"[eval] could not import SamSegmenter from src.segmenters.sam: {exc}")
 
-    res = args.res
+    seg = SamSegmenter(args.sam_encoder, args.sam_decoder, args.sam_yolo,
+                       device=args.device, enc_res=args.res)
+    print(f"[eval] device={args.device} val stems={len(stems)} data={data}")
+
     dices: list[float] = []
     ious: list[float] = []
     rows: list[tuple[str, float, float]] = []
@@ -121,27 +120,17 @@ def main() -> None:
         if ip is None or mp is None:
             missing += 1
             continue
-        img = Image.open(ip).convert("RGB")
-        gt_bin = (np.asarray(Image.open(mp)) > 0).astype(np.uint8)
-        H, W = gt_bin.shape[:2]
+        img = cv2.imread(str(ip))
+        gt = cv2.imread(str(mp), cv2.IMREAD_GRAYSCALE)
+        if img is None or gt is None:
+            missing += 1
+            continue
+        gt_bin = (gt > 0).astype(np.uint8)
 
-        x = img.resize((res, res), Image.BILINEAR)
-        arr = np.asarray(x, np.float32).transpose(2, 0, 1) / 255.0   # [3,res,res]
-        arr = (arr - IMAGENET_MEAN) / IMAGENET_STD
-        logits = np.asarray(compiled(arr[None])[out_port])[0]        # [2,h,w]
+        result = seg.infer(img)
+        pred = result.mask if result.mask is not None else np.zeros_like(gt_bin, dtype=bool)
 
-        up = np.empty((2, res, res), np.float32)
-        for c in range(2):
-            up[c] = np.asarray(
-                Image.fromarray(logits[c], mode="F").resize((res, res), Image.BILINEAR),
-                np.float32,
-            )
-        mask_res = (up[1] > up[0]).astype(np.uint8)                  # [res,res] {0,1}
-        pred_native = np.asarray(
-            Image.fromarray(mask_res * 255).resize((W, H), Image.NEAREST)
-        ) > 127
-
-        d, j = dice_iou(pred_native, gt_bin)
+        d, j = dice_iou(pred, gt_bin)
         dices.append(d)
         ious.append(j)
         rows.append((stem, d, j))
@@ -158,10 +147,12 @@ def main() -> None:
             f.write(f"{stem},{d:.6f},{j:.6f}\n")
 
     print(f"[eval] evaluated={ds['n']} missing={missing}")
-    print(f"[eval] Dice mean={ds['mean']:.4f} std={ds['std']:.4f} "
+    print(f"[eval] Dice mean={ds['mean']:.4f} median={ds['median']:.4f} std={ds['std']:.4f} "
           f"p10={ds['p10']:.4f} p90={ds['p90']:.4f} min={ds['min']:.4f} max={ds['max']:.4f}")
     print(f"[eval] IoU  mean={js['mean']:.4f} std={js['std']:.4f}")
     print(f"[eval] wrote {out_csv}")
+    verdict = "PASS" if ds["mean"] >= args.kpi else f"FAIL (need >= {args.kpi:.2f})"
+    print(f"[eval] KPI: mean Dice >= {args.kpi:.2f} -> {verdict}")
 
 
 if __name__ == "__main__":

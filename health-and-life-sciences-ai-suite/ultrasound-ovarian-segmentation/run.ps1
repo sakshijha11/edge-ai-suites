@@ -7,6 +7,9 @@
 #   .\run.ps1 -Source webcam -Input 0
 #   .\run.ps1 -Source folder -Input C:\path\to\frames   -Device GPU
 #
+#   # Pick the model arch (default ds2net); SAM-256 needs its three IRs prepared:
+#   .\run.ps1 -Arch sam -Source file -Input C:\path\to\clip.mp4
+#
 # Any extra flags are forwarded to the app, e.g.:
 #   .\run.ps1 -Source file -Input clip.mp4 -- --gpu-cap 80 --record out.mp4
 #
@@ -14,7 +17,10 @@
 param(
     [ValidateSet("file", "webcam", "folder")]
     [string]$Source = "file",
-    [string]$Input = "",
+    [Alias("Input")]
+    [string]$InputPath = "",
+    [ValidateSet("ds2net", "sam")]
+    [string]$Arch = "ds2net",
     [ValidateSet("GPU", "CPU", "NPU", "AUTO")]
     [string]$Device = "GPU",
     [string]$Model = "",
@@ -31,8 +37,8 @@ if (-not (Test-Path $py)) {
     Write-Error "virtual environment not found ($py). Run .\setup.ps1 first."
 }
 
-$cliArgs = @("-m", "src.app", "--source", $Source, "--device", $Device)
-if ($Input) { $cliArgs += @("--input", $Input) }
+$cliArgs = @("-m", "src.app", "--source", $Source, "--device", $Device, "--model-arch", $Arch)
+if ($InputPath) { $cliArgs += @("--input", $InputPath) }
 if ($Model) { $cliArgs += @("--model", $Model) }
 if ($Extra) { $cliArgs += $Extra }
 

@@ -1,22 +1,33 @@
 # Copyright © 2026 Intel Corporation. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Model preparation: export (and optionally train) the DS2Net SegFormer-B5 model
-# and place its fp16 OpenVINO IR where the app expects it.
+# Model preparation: export (and optionally train) a segmentation model and place
+# its OpenVINO IR(s) where the app expects them.
 #
-# The app does NOT ship a trained IR. Run this once to produce
+# -Arch ds2net (default): the promptless SegFormer-B5 model ->
 #   models\ds2net_segformer_b5_<Res>\model.xml
-# before launching .\run.ps1.
+# -Arch sam: the SAM-256 pipeline (three IRs) ->
+#   models\yolo_mmotu_320\yolov8n_mmotu.xml
+#   models\sam_encoder_256_stockft\encoder.xml
+#   models\sam_decoder_256_multimask\decoder.xml
+#
+# The app does NOT ship trained IRs. Run this once per arch before .\run.ps1.
 #
 # Usage (from this folder, PowerShell, after .\setup.ps1):
-#   # Export an existing trained checkpoint -> IR, then verify Dice:
+#   # DS2Net: export an existing trained checkpoint -> IR, then verify Dice:
 #   .\prepare_model.ps1 -Verify
-#
-#   # Train from scratch on the Intel iGPU first, then export + verify:
+#   # DS2Net: train on the Intel iGPU first, then export + verify:
 #   .\prepare_model.ps1 -Train -Verify
+#
+#   # SAM: export the three IRs from downloaded/fine-tuned weights, then verify:
+#   .\prepare_model.ps1 -Arch sam -Verify
+#   # SAM: train YOLO + fine-tune the encoder first, then export + verify:
+#   .\prepare_model.ps1 -Arch sam -Train -Verify
 #
 [CmdletBinding()]
 param(
+    [ValidateSet("ds2net", "sam")]
+    [string]$Arch = "ds2net",
     [string]$Checkpoint = "models\segformer_b5_mmotu",
     [int]$Res = 256,
     [string]$Data = "data\OTU_2d",
@@ -24,7 +35,8 @@ param(
     [string]$Device = "GPU",
     [switch]$Train,
     [switch]$Verify,
-    [string]$Venv = "venv"
+    [string]$Venv = "venv",
+    [switch]$SkipInstall
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,8 +47,90 @@ if (-not (Test-Path $py)) {
     Write-Error "virtual environment not found ($py). Run .\setup.ps1 first."
 }
 
-Write-Host "[prepare] installing model-prep dependencies (backend\requirements.txt)"
-& $py -m pip install -r backend\requirements.txt
+if ($Arch -eq "sam") {
+    # SAM-256 pipeline: three IRs (YOLO@320 bbox, encoder@256, multimask decoder).
+    & $py -c "import torch, ultralytics, segment_anything" 2>$null
+    $haveBackend = ($LASTEXITCODE -eq 0)
+    if ($SkipInstall -or $haveBackend) {
+        Write-Host "[prepare] SAM model-prep dependencies already present - skipping pip install"
+    } else {
+        Write-Host "[prepare] installing SAM model-prep dependencies (backend\requirements-sam.txt)"
+        & $py -m pip install -r backend\requirements-sam.txt
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error ("pip install failed. On an air-gapped machine, reuse a venv that already has " +
+                "torch+ultralytics+segment-anything via -Venv <path>, or install from a local wheel cache " +
+                "with --no-index --find-links <wheels_dir>.")
+        }
+    }
+
+    $stockWeights = "models\sam_vit_b_01ec64.pth"
+    if (-not (Test-Path $stockWeights)) {
+        Write-Error ("stock SAM ViT-B weights not found: $stockWeights`n" +
+            "Download (Apache-2.0):`n" +
+            "  curl -L -o $stockWeights https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth")
+    }
+
+    if ($Train) {
+        Write-Host "[prepare] SAM -Train: YOLO labels + YOLOv8n train + SAM encoder fine-tune (the long step)"
+        & $py -m backend.bootstrap.sam.prepare_yolo_data --data $Data
+        if ($LASTEXITCODE -ne 0) { Write-Error "prepare_yolo_data failed" }
+        & $py -m backend.bootstrap.sam.train_yolo --device cpu
+        if ($LASTEXITCODE -ne 0) { Write-Error "train_yolo failed" }
+        & $py -m backend.bootstrap.sam.finetune_encoder --weights $stockWeights --data $Data --device xpu
+        if ($LASTEXITCODE -ne 0) { Write-Error "finetune_encoder failed" }
+    }
+
+    $yoloWeights = "models\yolov8n_mmotu.pt"
+    $encWeights = "models\sam256_stockft.pth"
+    if (-not (Test-Path $yoloWeights)) {
+        Write-Error ("trained YOLO weights not found: $yoloWeights`n" +
+            "Run with -Train, or place a trained YOLOv8n MMOTU-2D checkpoint there.")
+    }
+    if (-not (Test-Path $encWeights)) {
+        Write-Error ("fine-tuned SAM encoder not found: $encWeights`n" +
+            "Run with -Train, or place your downloaded sam256_stockft.pth there.")
+    }
+
+    Write-Host "[prepare] exporting the three SAM IRs (YOLO@320, encoder@256, multimask decoder)"
+    & $py -m backend.bootstrap.sam.export_yolo
+    if ($LASTEXITCODE -ne 0) { Write-Error "export_yolo failed" }
+    & $py -m backend.bootstrap.sam.export_encoder --weights $encWeights
+    if ($LASTEXITCODE -ne 0) { Write-Error "export_encoder failed" }
+    & $py -m backend.bootstrap.sam.export_decoder --weights $stockWeights
+    if ($LASTEXITCODE -ne 0) { Write-Error "export_decoder failed" }
+
+    $encXml = "models\sam_encoder_256_stockft\encoder.xml"
+    if (-not (Test-Path $encXml)) { Write-Error "export did not produce $encXml" }
+
+    if ($Verify) {
+        Write-Host "[prepare] verifying end-to-end Dice/IoU on the MMOTU-2D val split (device=$Device)"
+        & $py -m backend.bootstrap.sam.eval --device $Device --data $Data
+        if ($LASTEXITCODE -ne 0) { Write-Error "eval failed" }
+        Write-Host "[prepare] expected reference at res 256: end-to-end Dice ~0.8207 / IoU ~0.7394"
+    }
+
+    Write-Host "[prepare] done. SAM IRs ready under models\yolo_mmotu_320, models\sam_encoder_256_stockft, models\sam_decoder_256_multimask"
+    Write-Host "[prepare] launch the demo:"
+    Write-Host "  .\run.ps1 -Arch sam -Source file -Input <clip.mp4> -Device $Device"
+    return
+}
+
+# Skip the online install when torch+transformers are already importable (e.g. an
+# existing or air-gapped venv). Pass -Venv <path> to reuse an environment, or
+# -SkipInstall to force-skip.
+& $py -c "import torch, transformers" 2>$null
+$haveBackend = ($LASTEXITCODE -eq 0)
+if ($SkipInstall -or $haveBackend) {
+    Write-Host "[prepare] model-prep dependencies already present - skipping pip install"
+} else {
+    Write-Host "[prepare] installing model-prep dependencies (backend\requirements.txt)"
+    & $py -m pip install -r backend\requirements.txt
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error ("pip install failed. On an air-gapped machine, reuse a venv that already has " +
+            "torch+transformers via -Venv <path>, or install from a local wheel cache with " +
+            "--no-index --find-links <wheels_dir>.")
+    }
+}
 
 if ($Train) {
     Write-Host "[prepare] training SegFormer-B5 on MMOTU-2D (this is the long step)"

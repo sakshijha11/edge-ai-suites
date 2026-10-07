@@ -26,8 +26,11 @@ def _color(spec: str) -> tuple[int, int, int]:
         return (0, 0, 255)
 
 
-# In-tree IR produced by model-prep (backend/bootstrap) or copied from an export.
+# In-tree IRs produced by model-prep (backend/bootstrap) or copied from an export.
 _DEFAULT_MODEL = os.path.join("models", "ds2net_segformer_b5_256", "model.xml")
+_DEFAULT_SAM_ENCODER = os.path.join("models", "sam_encoder_256_stockft", "encoder.xml")
+_DEFAULT_SAM_DECODER = os.path.join("models", "sam_decoder_256_multimask", "decoder.xml")
+_DEFAULT_SAM_YOLO = os.path.join("models", "yolo_mmotu_320", "yolov8n_mmotu.xml")
 
 
 @dataclass
@@ -42,7 +45,11 @@ class Config:
 
     # model / inference
     device: str          # CPU | GPU | NPU | AUTO
-    model: str           # path to model.xml
+    model_arch: str      # ds2net (promptless SegFormer) | sam (YOLO bbox + SAM-256)
+    model: str           # ds2net: path to model.xml
+    sam_encoder: str     # sam: SAM encoder IR
+    sam_decoder: str     # sam: SAM multimask decoder IR
+    sam_yolo: str        # sam: YOLOv8 detector IR
     res: int             # network input resolution (square)
     frame_skip: int      # run inference every Nth captured frame
 
@@ -61,7 +68,7 @@ class Config:
 
 def parse_config(argv: list[str] | None = None) -> Config:
     p = argparse.ArgumentParser(
-        description="Ultrasound ovarian tumor segmentation (promptless SegFormer-B5, OpenVINO)."
+        description="Ultrasound ovarian tumor segmentation (DS2Net SegFormer-B5 or SAM-256, OpenVINO)."
     )
 
     # source
@@ -79,10 +86,20 @@ def parse_config(argv: list[str] | None = None) -> Config:
     # model / inference
     p.add_argument("--device", default=_env("DEVICE", "GPU").upper(),
                    choices=["CPU", "GPU", "NPU", "AUTO"])
+    p.add_argument("--model-arch", default=_env("MODEL_ARCH", "ds2net"),
+                   choices=["ds2net", "sam"],
+                   help="segmentation model: 'ds2net' (promptless SegFormer-B5, default) or "
+                        "'sam' (YOLOv8 bbox prompt + SAM-256 encoder/decoder)")
     p.add_argument("--model", default=_env("MODEL", _DEFAULT_MODEL),
-                   help="path to the OpenVINO IR model.xml")
+                   help="ds2net arch: path to the OpenVINO IR model.xml")
+    p.add_argument("--sam-encoder", default=_env("SAM_ENCODER", _DEFAULT_SAM_ENCODER),
+                   help="sam arch: path to the SAM encoder IR (encoder.xml)")
+    p.add_argument("--sam-decoder", default=_env("SAM_DECODER", _DEFAULT_SAM_DECODER),
+                   help="sam arch: path to the SAM multimask decoder IR (decoder.xml)")
+    p.add_argument("--sam-yolo", default=_env("SAM_YOLO", _DEFAULT_SAM_YOLO),
+                   help="sam arch: path to the YOLOv8 detector IR (yolov8n_mmotu.xml)")
     p.add_argument("--res", type=int, default=int(_env("RES", "256")),
-                   help="network input resolution (must match the exported IR)")
+                   help="network input resolution (must match the exported IR; 256 for both archs)")
     p.add_argument("--frame-skip", type=int, default=int(_env("FRAME_SKIP", "1")),
                    help="run inference every Nth captured frame (1 = every frame)")
 
@@ -114,7 +131,11 @@ def parse_config(argv: list[str] | None = None) -> Config:
         height=a.height,
         target_fps=a.target_fps,
         device=a.device,
+        model_arch=a.model_arch,
         model=a.model,
+        sam_encoder=a.sam_encoder,
+        sam_decoder=a.sam_decoder,
+        sam_yolo=a.sam_yolo,
         res=a.res,
         frame_skip=max(1, a.frame_skip),
         gpu_cap=a.gpu_cap,

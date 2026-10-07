@@ -5,12 +5,14 @@
 > **not intended for direct use in clinical or diagnostic environments** and is
 > not validated for such a purpose.
 
-The app demonstrates how Intel hardware acceleration (CPU / Intel iGPU / Intel
-NPU) can be applied through OpenVINO to AI-based real-time ovarian tumor
-segmentation in 2D ultrasound. It runs a promptless SegFormer-B5 (DS2Net) model
-with a decoupled capture / inference / display architecture, so the displayed
-video stays smooth regardless of inference speed, and enforces an Intel iGPU
-< 80% utilization KPI with a built-in GPU governor.
+The app demonstrates how Intel hardware acceleration (Intel iGPU, with CPU
+fallback) can be applied through OpenVINO to AI-based real-time ovarian tumor
+segmentation in 2D ultrasound. It offers two interchangeable models (selected
+with `-Arch`): a default promptless SegFormer-B5 (DS2Net) and an optional
+prompted SAM-256 pipeline (YOLO bbox → SAM encoder → mask decoder). A decoupled
+capture / inference / display architecture keeps the displayed video smooth
+regardless of inference speed, and a built-in GPU governor enforces an Intel iGPU
+< 80% utilization KPI.
 
 Supported inputs:
 

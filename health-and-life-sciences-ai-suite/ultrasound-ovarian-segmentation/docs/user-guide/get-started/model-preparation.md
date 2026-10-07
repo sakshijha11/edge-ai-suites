@@ -10,6 +10,14 @@ and verification.
 > backbone and dataset carry their own licenses (see the end of this page). The
 > app ships the recipe, not the weights.
 
+> **Two model architectures.** The app ships two interchangeable segmentation
+> models, selected with `-Arch`:
+>
+> - **`ds2net`** (default) — a promptless SegFormer-B5. This is the recipe
+>   immediately below.
+> - **`sam`** — a prompted SAM-256 pipeline (YOLO bbox → SAM encoder → mask
+>   decoder). See [SAM-256 arch](#sam-256-arch) for its separate recipe.
+
 ## What you produce
 
 ```
@@ -161,16 +169,126 @@ A mean Dice near 0 means the IR was exported from random weights (missing
 .\run.ps1 -Source file -Input C:\path\to\clip.mp4 -Device GPU
 ```
 
+## SAM-256 arch
+
+The SAM-256 arch (`-Arch sam`) is a three-model, *prompted* pipeline:
+
+```text
+frame → YOLOv8n@320 bbox → SAM ViT-B encoder@256 (fine-tuned) →
+  stock SAM prompt-encoder + mask-decoder (frozen, multimask) →
+  argmax-by-IoU → tumor mask
+```
+
+It fine-tunes only the SAM image encoder on MMOTU-2D; the prompt encoder and mask
+decoder are stock Meta SAM ViT-B. Reference accuracy at res 256: **end-to-end
+Dice mean 0.8207 / IoU 0.7394** on the 469-image val split (0.9215 Dice with a
+ground-truth box — the gap is YOLO localization error).
+
+### What you produce
+
+```
+models/
+  yolov8n_mmotu.pt                       # trained YOLO checkpoint (train_yolo.py)
+  sam256_stockft.pth                     # fine-tuned SAM encoder weights (finetune_encoder.py)
+  yolo_mmotu_320/yolov8n_mmotu.xml       # bbox IR (export_yolo.py)
+  sam_encoder_256_stockft/encoder.xml    # encoder IR (export_encoder.py)
+  sam_decoder_256_multimask/decoder.xml  # decoder IR (export_decoder.py)
+```
+
+The app loads the three `.xml` IRs (see `src/config.py` defaults).
+
+### 1. Dataset
+
+Same **MMOTU-2D (OTU_2d)** dataset and layout as the DS2Net arch above — download
+it once. The YOLO stage derives one `lesion` box per image from the mask contour.
+
+### 2. Download the stock SAM weights
+
+Download Meta's stock SAM ViT-B checkpoint (**Apache-2.0**) to `models/`:
+
+```powershell
+curl -L -o models\sam_vit_b_01ec64.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+```
+
+This one checkpoint initializes the encoder fine-tune and provides the frozen
+prompt-encoder + mask-decoder for the decoder export.
+
+### 3. Install dependencies
+
+```powershell
+venv\Scripts\python.exe -m pip install -r backend\requirements-sam.txt
+```
+
+> **License note:** `ultralytics` (YOLOv8) is **AGPL-3.0** and is used
+> **build-time only** to train and export the detector. The runtime app loads the
+> exported OpenVINO IR with OpenVINO/OpenCV and never imports ultralytics, so the
+> shipped app is not a derivative work of it. Substitute any box detector that
+> emits an `[x, y, w, h]` lesion box if AGPL is unacceptable for your deployment.
+> `segment-anything` is Apache-2.0.
+
+### Option A — export from existing weights
+
+If you already have `models/sam256_stockft.pth` and `models/yolov8n_mmotu.pt`
+(e.g. downloaded), export the three IRs and verify:
+
+```powershell
+.\prepare_model.ps1 -Arch sam -Verify
+```
+
+### Option B — train, then export
+
+```powershell
+.\prepare_model.ps1 -Arch sam -Train -Verify
+```
+
+or run each stage directly for more control:
+
+```powershell
+venv\Scripts\python.exe -m backend.bootstrap.sam.prepare_yolo_data --data data\OTU_2d
+venv\Scripts\python.exe -m backend.bootstrap.sam.train_yolo --device cpu
+venv\Scripts\python.exe -m backend.bootstrap.sam.finetune_encoder ^
+    --weights models\sam_vit_b_01ec64.pth --data data\OTU_2d --device xpu
+venv\Scripts\python.exe -m backend.bootstrap.sam.export_yolo
+venv\Scripts\python.exe -m backend.bootstrap.sam.export_encoder --weights models\sam256_stockft.pth
+venv\Scripts\python.exe -m backend.bootstrap.sam.export_decoder --weights models\sam_vit_b_01ec64.pth
+```
+
+The encoder fine-tune uses `/255.0` image scaling (no mean/std) — identical to the
+runtime encoder preprocessing — so the trained encoder matches the inference input
+distribution. This is what reproduces the reference Dice.
+
+### Verify
+
+```powershell
+venv\Scripts\python.exe -m backend.bootstrap.sam.eval --device GPU --data data\OTU_2d
+```
+
+Expected on the full val split:
+
+```text
+[eval] Dice mean=0.8207 ...
+[eval] IoU  mean=0.7394 ...
+[eval] KPI: mean Dice >= 0.80 -> PASS
+```
+
+### Run the SAM app
+
+```powershell
+.\run.ps1 -Arch sam -Source file -Input C:\path\to\clip.mp4 -Device GPU
+```
+
 ## Licenses summary
 
 | Component | License | Notes |
 |---|---|---|
 | This app | Apache-2.0 | code only |
-| DS2Net reference | Apache-2.0 | model / method |
+| DS2Net reference | Apache-2.0 | model / method (`ds2net` arch) |
+| SAM (segment-anything) | Apache-2.0 | encoder + prompt-encoder + mask-decoder (`sam` arch) |
+| YOLOv8 (ultralytics) | AGPL-3.0 | **build-time only** detector (`sam` arch); not imported at runtime |
 | MMOTU-2D dataset | Apache-2.0 | downloaded locally, not redistributed |
-| nvidia/mit-b5 backbone | NVIDIA SegFormer (research/non-commercial) | training init only, not redistributed |
+| nvidia/mit-b5 backbone | NVIDIA SegFormer (research/non-commercial) | `ds2net` training init only, not redistributed |
 | PyTorch | BSD-3-Clause | model-prep only |
-| Transformers | Apache-2.0 | model-prep only |
+| Transformers | Apache-2.0 | `ds2net` model-prep only |
 | OpenVINO / OpenCV | Apache-2.0 | runtime |
 
 See [third_party_programs_ultrasound-ovarian-segmentation.txt](../../../third_party_programs_ultrasound-ovarian-segmentation.txt)
