@@ -83,7 +83,7 @@ and extension variants.
 
 Training initializes from the **nvidia/mit-b5** ImageNet backbone. On a machine
 with internet access, download the Hugging Face snapshot and copy it to the
-(air-gapped) target box at `models/mit_b5_hf`:
+target box at `models/mit_b5_hf`:
 
 ```python
 # on an internet-connected machine

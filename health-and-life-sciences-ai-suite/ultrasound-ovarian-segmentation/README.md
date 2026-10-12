@@ -112,13 +112,11 @@ CPU / iGPU / NPU / power / memory graphs — on top of the **same** `src/` pipel
 Python packages (Flask + psutil, and pandas for the power graph):
 
 ```powershell
-.\venv\Scripts\pip install -r webapp\requirements.txt   # connected box
+.\venv\Scripts\pip install -r webapp\requirements.txt
 .\run_webapp.ps1                                         # serves http://127.0.0.1:8080
 ```
 
-On an air-gapped box, skip the install and reuse a venv that already has the deps:
-`.\run_webapp.ps1 -Venv C:\path\to\venv`. Full setup, including the hardware
-graphs, is in
+Full setup, including the hardware-utilization graphs, is in
 [Get Started](docs/user-guide/get-started.md#4-run-the-web-dashboard-ui).
 
 ## Common Commands

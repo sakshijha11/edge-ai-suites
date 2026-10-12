@@ -57,7 +57,7 @@ if ($Arch -eq "sam") {
         Write-Host "[prepare] installing SAM model-prep dependencies (backend\requirements-sam.txt)"
         & $py -m pip install -r backend\requirements-sam.txt
         if ($LASTEXITCODE -ne 0) {
-            Write-Error ("pip install failed. On an air-gapped machine, reuse a venv that already has " +
+            Write-Error ("pip install failed. Reuse a venv that already has " +
                 "torch+ultralytics+segment-anything via -Venv <path>, or install from a local wheel cache " +
                 "with --no-index --find-links <wheels_dir>.")
         }
@@ -116,8 +116,8 @@ if ($Arch -eq "sam") {
 }
 
 # Skip the online install when torch+transformers are already importable (e.g. an
-# existing or air-gapped venv). Pass -Venv <path> to reuse an environment, or
-# -SkipInstall to force-skip.
+# existing venv). Pass -Venv <path> to reuse an environment, or -SkipInstall to
+# force-skip.
 & $py -c "import torch, transformers" 2>$null
 $haveBackend = ($LASTEXITCODE -eq 0)
 if ($SkipInstall -or $haveBackend) {
@@ -126,7 +126,7 @@ if ($SkipInstall -or $haveBackend) {
     Write-Host "[prepare] installing model-prep dependencies (backend\requirements.txt)"
     & $py -m pip install -r backend\requirements.txt
     if ($LASTEXITCODE -ne 0) {
-        Write-Error ("pip install failed. On an air-gapped machine, reuse a venv that already has " +
+        Write-Error ("pip install failed. Reuse a venv that already has " +
             "torch+transformers via -Venv <path>, or install from a local wheel cache with " +
             "--no-index --find-links <wheels_dir>.")
     }

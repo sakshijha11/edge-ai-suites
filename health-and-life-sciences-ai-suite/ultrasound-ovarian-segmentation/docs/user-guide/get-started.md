@@ -27,11 +27,6 @@ This creates a local `venv` and installs the runtime dependencies
 (`requirements.txt`): OpenVINO, OpenCV, NumPy, and pywin32 (for the GPU-Engine
 counters the governor reads).
 
-> **Air-gapped box?** `setup.ps1` auto-skips the online install when OpenVINO /
-> OpenCV / NumPy are already importable, so you can reuse an existing environment
-> instead. Point any script at it with `-Venv C:\path\to\venv` — this works for
-> `setup.ps1`, `prepare_model.ps1`, and `run_webapp.ps1`.
-
 ## 2. Prepare the model
 
 The app does not ship a trained model. It loads its default IR from
@@ -103,30 +98,23 @@ and every graph lights up:
 2. **An input** — a clip (`.mp4`) or a folder of frames ready on disk, or just
    use the bundled `data\stills`.
 3. **Python packages** — the UI needs a few beyond the CLI (Flask + psutil, and
-   pandas for the power graph). On a connected box, add them to the `venv`:
+   pandas for the power graph). Add them to the `venv`:
 
    ```powershell
    .\venv\Scripts\pip install -r webapp\requirements.txt
    ```
-
-   On an air-gapped box, reuse a complete `venv` via `-Venv` (below) — one that
-   already has the runtime deps (openvino, opencv, numpy, pywin32) **and** these
-   UI deps (flask, psutil, pandas).
 4. **Hardware-utilization tools** — CPU and memory need nothing extra, but the
    iGPU / NPU / power graphs use Intel vendor tools (SoCWatch, Level Zero) that
    are **not** committed (~139 MB). Stage them once by copying a
    `monitoring\tools` folder from your existing benchmark install into this
-   clone, and make sure the `venv` also has `pandas` + `pywin32`. Without them
-   the app still runs and shows CPU + memory.
+   clone. Without them the app still runs and shows CPU + memory.
 
 ### Launch and run
 
-Launch — this reuses the same `venv` by default:
+Launch:
 
 ```powershell
 .\run_webapp.ps1
-# air-gapped: reuse a venv that already has the deps from step 3 above
-.\run_webapp.ps1 -Venv C:\path\to\other\venv
 ```
 
 This serves the UI at <http://127.0.0.1:8080> and opens your browser. Then:
