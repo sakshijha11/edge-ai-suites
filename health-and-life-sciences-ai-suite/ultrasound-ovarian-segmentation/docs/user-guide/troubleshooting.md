@@ -15,12 +15,17 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## `model IR not found: models\ds2net_segformer_b5_256\model.xml`
 
-The app does not ship a model. Produce it:
+The app does not ship a model. Either drop in a prebuilt IR or produce one:
 
-```powershell
-.\prepare_model.ps1 -Verify          # export an existing checkpoint
-.\prepare_model.ps1 -Train -Verify   # or train first
-```
+- **Prebuilt IR** — if you have the exported `model.xml` + `model.bin` (for
+  example, from another box), place both under `models\ds2net_segformer_b5_256\`.
+  That is all the app needs to run.
+- **Produce it:**
+
+  ```powershell
+  .\prepare_model.ps1 -Verify          # export an existing checkpoint
+  .\prepare_model.ps1 -Train -Verify   # or train first
+  ```
 
 See [Model Preparation](./get-started/model-preparation.md).
 

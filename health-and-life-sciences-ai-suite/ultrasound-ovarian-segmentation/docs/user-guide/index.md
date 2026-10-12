@@ -24,7 +24,8 @@ How to start:
 
 - See [Model Preparation](./get-started/model-preparation.md) to produce the
   OpenVINO IR the app loads — the app does not ship a trained model.
-- See [Get Started](./get-started.md) for a step-by-step setup and run guide.
+- See [Get Started](./get-started.md) for a step-by-step setup and run guide —
+  including the **web dashboard (UI)**, the primary way to drive the app.
 - See [Runtime Configuration](./runtime-configuration.md) for every flag and
   environment variable the app exposes.
 - See [Troubleshooting](./troubleshooting.md) for common issues.

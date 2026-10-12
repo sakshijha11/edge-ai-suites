@@ -32,6 +32,12 @@ models/
 Reference accuracy at res 256: **Dice mean 0.8657 / median 0.922, IoU mean
 0.7913** on the 469-image MMOTU-2D validation split.
 
+> **Already have the exported IR?** If someone handed you `model.xml` +
+> `model.bin` (for example, copied from another box), you can skip this entire
+> page: place the two files under `models\ds2net_segformer_b5_256\` and run the
+> app. The dataset, training, and model-prep dependencies are only needed to
+> *produce* the IR, not to run it.
+
 ## Model background
 
 "DS2Net" (github.com/cv516Buaa/MMOTU_DS2Net, arXiv 2207.06799, Apache-2.0) is a

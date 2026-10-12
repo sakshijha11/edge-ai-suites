@@ -27,25 +27,39 @@ This creates a local `venv` and installs the runtime dependencies
 (`requirements.txt`): OpenVINO, OpenCV, NumPy, and pywin32 (for the GPU-Engine
 counters the governor reads).
 
+> **Air-gapped box?** `setup.ps1` auto-skips the online install when OpenVINO /
+> OpenCV / NumPy are already importable, so you can reuse an existing environment
+> instead. Point any script at it with `-Venv C:\path\to\venv` — this works for
+> `setup.ps1`, `prepare_model.ps1`, and `run_webapp.ps1`.
+
 ## 2. Prepare the model
 
-The app does not ship a trained model. Produce the OpenVINO IR the app loads
-(`models/ds2net_segformer_b5_256/model.xml`):
+The app does not ship a trained model. It loads its default IR from
+`models\ds2net_segformer_b5_256\model.xml`. Pick the case that matches you:
 
-```powershell
-.\prepare_model.ps1 -Verify          # if you already have models\segformer_b5_mmotu
-# or
-.\prepare_model.ps1 -Train -Verify   # train on the Intel iGPU first, then export
-```
+- **You were handed a prebuilt IR** (for example, copied from another evaluation
+  box). Place the two files — `model.xml` and `model.bin` — under
+  `models\ds2net_segformer_b5_256\` and jump to
+  [step 3](#3-run-the-segmentation-pop-up). No dataset, training, or model-prep
+  dependencies required.
 
-To use the optional prompted SAM-256 arch instead, add `-Arch sam` (it needs the
-stock SAM ViT-B weights downloaded first):
+- **You have a trained checkpoint** at `models\segformer_b5_mmotu`. Export it to
+  the IR and verify Dice:
 
-```powershell
-.\prepare_model.ps1 -Arch sam -Verify
-```
+  ```powershell
+  .\prepare_model.ps1 -Verify
+  ```
 
-Full walkthrough — dataset, backbone, training, export, expected Dice — in
+- **You are starting from nothing.** Training needs the MMOTU-2D dataset and the
+  MiT-B5 backbone downloaded first (see the walkthrough), then:
+
+  ```powershell
+  .\prepare_model.ps1 -Train -Verify   # train on the Intel iGPU, then export + verify
+  ```
+
+For the optional prompted SAM-256 arch, add `-Arch sam` (it needs the stock SAM
+ViT-B weights downloaded first). The full walkthrough — dataset layout, backbone,
+training, export, expected Dice, and the SAM recipe — is in
 [Model Preparation](./get-started/model-preparation.md).
 
 ## 3. Run the segmentation pop-up
@@ -79,18 +93,40 @@ The web dashboard is the primary way to drive the app: on top of the same
 plus live hardware utilization (CPU / iGPU / NPU / power / memory) and pipeline
 KPIs.
 
-The UI needs a few extra Python packages beyond the CLI (Flask + psutil, and
-pandas for the power graph). On a connected box, add them to the `venv`:
+### Prepare the dashboard (one-time)
 
-```powershell
-.\venv\Scripts\pip install -r webapp\requirements.txt
-```
+Have all of this ready **before** you launch, so the first **Start** is seamless
+and every graph lights up:
 
-On an air-gapped box, point `-Venv` at a virtual environment that already has
-them. Then launch (reuses the same `venv` by default):
+1. **Model** — the dashboard loads the same IR you built in
+   [step 2](#2-prepare-the-model) (`models\ds2net_segformer_b5_256\model.xml`).
+2. **An input** — a clip (`.mp4`) or a folder of frames ready on disk, or just
+   use the bundled `data\stills`.
+3. **Python packages** — the UI needs a few beyond the CLI (Flask + psutil, and
+   pandas for the power graph). On a connected box, add them to the `venv`:
+
+   ```powershell
+   .\venv\Scripts\pip install -r webapp\requirements.txt
+   ```
+
+   On an air-gapped box, reuse a complete `venv` via `-Venv` (below) — one that
+   already has the runtime deps (openvino, opencv, numpy, pywin32) **and** these
+   UI deps (flask, psutil, pandas).
+4. **Hardware-utilization tools** — CPU and memory need nothing extra, but the
+   iGPU / NPU / power graphs use Intel vendor tools (SoCWatch, Level Zero) that
+   are **not** committed (~139 MB). Stage them once by copying a
+   `monitoring\tools` folder from your existing benchmark install into this
+   clone, and make sure the `venv` also has `pandas` + `pywin32`. Without them
+   the app still runs and shows CPU + memory.
+
+### Launch and run
+
+Launch — this reuses the same `venv` by default:
 
 ```powershell
 .\run_webapp.ps1
+# air-gapped: reuse a venv that already has the deps from step 3 above
+.\run_webapp.ps1 -Venv C:\path\to\other\venv
 ```
 
 This serves the UI at <http://127.0.0.1:8080> and opens your browser. Then:
@@ -106,13 +142,6 @@ Segmentation*); press **ESC** in that window, or **Stop** in the UI, to end the
 run. The browser shows live inference latency / FPS, the iGPU KPI, and the
 hardware-utilization graphs. Use `-Port 8090` to change the port or `-NoBrowser`
 to skip launching the browser.
-
-> **Hardware-utilization graphs.** CPU and memory come from `psutil` with no
-> extra setup. The iGPU / NPU / power graphs use Intel vendor tools (SoCWatch,
-> Level Zero) that are **not** committed. Stage them once by copying a
-> `monitoring\tools` folder from your existing benchmark install into this
-> clone, and make sure the `venv` has `pandas` + `pywin32`; without them the app
-> still runs and shows CPU + memory.
 
 ## 5. Confirm the GPU KPI
 
