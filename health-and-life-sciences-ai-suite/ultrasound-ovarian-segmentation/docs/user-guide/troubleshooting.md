@@ -89,3 +89,30 @@ Windows, reinstall deps: `.\setup.ps1`.
 
 `--input` is the device index. Try `0`, `1`, `2`. Close other apps that may hold
 the camera.
+
+## Web dashboard: page does not load
+
+- Confirm the server is running: the console prints
+  `[webapp] serving on http://127.0.0.1:8080`. Open that exact URL.
+- If the port is busy, start on another port: `.\run_webapp.ps1 -Port 8090`.
+- A blank page usually means the prebuilt UI is missing. The clone must contain
+  `webapp\ui\dist\index.html` (it is committed). If it is absent you are on a
+  branch without the build — re-clone.
+
+## Web dashboard: Start fails with `input not found`
+
+Enter a valid path in **Video / image source** (a `.mp4` file or a folder of
+frames), or stage a `data\stills` folder and leave the field blank. The path is
+resolved on the machine running the server.
+
+## Web dashboard: `HW monitoring: DISABLED`
+
+The browser still shows CPU + memory (via `psutil`), but the iGPU / NPU / power
+graphs need the Intel vendor tools and their Python deps:
+
+- Install `pandas` + `pywin32` into the `venv`.
+- Copy a `monitoring\tools` folder (SoCWatch / Level Zero) from your benchmark
+  install into this clone's `monitoring\tools`.
+
+These are intentionally not committed (≈139 MB of vendor binaries). Without them
+the pipeline and its latency / FPS / iGPU KPIs still work.
