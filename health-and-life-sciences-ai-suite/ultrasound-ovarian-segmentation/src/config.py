@@ -64,6 +64,8 @@ class Config:
     window: str
     headless: bool
     record: str | None           # path to write an annotated .mp4
+    view: str                    # overlay | side_by_side (original | segmented)
+    log_file: str | None         # opt-in: also write the run log (incl. KPIs) here
 
 
 def parse_config(argv: list[str] | None = None) -> Config:
@@ -117,10 +119,17 @@ def parse_config(argv: list[str] | None = None) -> Config:
                    help="overlay colour as B,G,R (default red = 0,0,255)")
     p.add_argument("--display-scale", type=float, default=float(_env("DISPLAY_SCALE", "1.0")))
     p.add_argument("--window", default=_env("WINDOW", "Ovarian Tumor Segmentation"))
+    p.add_argument("--view", default=_env("VIEW", "side_by_side"),
+                   choices=["overlay", "side_by_side"],
+                   help="pop-up layout: 'side_by_side' (original | segmented, default) or "
+                        "'overlay' (mask drawn directly on the frame)")
     p.add_argument("--headless", action="store_true", default=_env("HEADLESS", "0") != "0",
                    help="no window (useful for recording or soak tests)")
     p.add_argument("--record", default=_env("RECORD", ""),
                    help="path to write an annotated .mp4 of the output")
+    p.add_argument("--log-file", default=_env("LOG_FILE", ""),
+                   help="also write the run log (incl. KPI verdicts) to this file; "
+                        "off by default (stderr only). e.g. reports\\run.log")
 
     a = p.parse_args(argv)
     return Config(
@@ -146,4 +155,6 @@ def parse_config(argv: list[str] | None = None) -> Config:
         window=a.window,
         headless=a.headless,
         record=a.record or None,
+        view=a.view,
+        log_file=a.log_file or None,
     )

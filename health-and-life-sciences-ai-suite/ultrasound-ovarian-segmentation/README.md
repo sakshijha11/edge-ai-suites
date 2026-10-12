@@ -22,7 +22,7 @@ run.
 | **Inference** | Pure OpenVINO runtime (no PyTorch at run time) |
 | **Runtime** | Native Windows Python app (PowerShell + venv) |
 | **Inputs** | Video file, USB webcam, or a folder of ultrasound stills |
-| **Display** | OpenCV pop-up with mask overlay + FPS / GPU HUD |
+| **Display** | OpenCV pop-up: original + segmented side-by-side (or `--view overlay`) + FPS / GPU HUD |
 | **GPU cap** | Adaptive governor enforces the iGPU < 80% utilization KPI |
 
 ## Topology
@@ -88,8 +88,9 @@ From this directory, after model preparation:
 .\run.ps1 -Source file -Input C:\path\to\clip.mp4 -Device GPU
 ```
 
-A pop-up window opens showing each frame with the tumor-mask overlay and a HUD
-(display/inference FPS, latency, and live iGPU utilization). Press `q` or `Esc`
+A pop-up window opens showing the **original frame alongside the segmented frame**
+(tumor-mask overlay) and a HUD (display/inference FPS, latency, and live iGPU
+utilization); pass `--view overlay` for a single overlaid pane. Press `q` or `Esc`
 to quit, or close the window. On exit the app prints the GPU KPI verdict, for
 example:
 

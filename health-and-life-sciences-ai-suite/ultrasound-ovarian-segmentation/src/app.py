@@ -49,11 +49,15 @@ class Rate:
         self._n = 0
         self.fps = 0.0
         self._lat_ms = 0.0
+        self._lat_sum = 0.0
+        self._lat_count = 0
 
     def tick(self, latency_ms: float | None = None) -> None:
         self._n += 1
         if latency_ms is not None:
             self._lat_ms = 0.9 * self._lat_ms + 0.1 * latency_ms
+            self._lat_sum += latency_ms
+            self._lat_count += 1
         now = time.monotonic()
         if now - self._t >= 1.0:
             self.fps = self._n / (now - self._t)
@@ -62,6 +66,14 @@ class Rate:
     @property
     def latency_ms(self) -> float:
         return self._lat_ms
+
+    @property
+    def mean_latency_ms(self) -> float:
+        return self._lat_sum / self._lat_count if self._lat_count else 0.0
+
+    @property
+    def count(self) -> int:
+        return self._lat_count
 
 
 class LatestResult:
@@ -142,8 +154,51 @@ def inference_loop(seg, governor, infer_q, latest, inf_rate) -> None:
             time.sleep(d)
 
 
+def _attach_log_file(path: str) -> None:
+    """Opt-in: also write the run log (incl. KPI verdicts) to a file.
+
+    Off by default; enabled only via --log-file / LOG_FILE. Each record is
+    flushed, so the KPI lines survive even an abrupt Ctrl-C. The file is the
+    user's to keep or delete (reports/ is git-ignored); the app never rotates
+    or auto-removes it.
+    """
+    fpath = Path(path)
+    if fpath.parent and not fpath.parent.exists():
+        fpath.parent.mkdir(parents=True, exist_ok=True)
+    handler = logging.FileHandler(fpath, mode="w", encoding="utf-8")
+    handler.setFormatter(logging.Formatter("[%(asctime)s] %(name)s: %(message)s"))
+    logging.getLogger().addHandler(handler)
+    log.info("writing run log to %s", fpath)
+
+
+def _log_kpis(cfg, governor, inf_rate) -> None:
+    """Emit the GPU + segmentation KPI verdicts.
+
+    Called from main()'s finally block so the verdicts are logged on ANY exit
+    (clean quit, window close, or Ctrl-C), not only a graceful one.
+    """
+    gov = governor.snapshot()
+    if gov.get("available"):
+        verdict = "PASS" if gov["within_cap"] else "OVER"
+        log.info("GPU KPI (< %.0f%%): %s — peak busiest-engine %.1f%% mean %.1f%% "
+                 "(samples=%d, throttle_engaged=%s)",
+                 gov["cap_pct"], verdict, gov["peak_pct"], gov["mean_pct"],
+                 gov["samples"], gov["throttle_engaged"])
+
+    lat = inf_rate.mean_latency_ms
+    if lat > 0:
+        seg_fps = 1000.0 / lat
+        lat_v = "PASS" if lat < 30.0 else "OVER"
+        fps_v = "PASS" if seg_fps > 30.0 else "UNDER"
+        log.info("Segmentation KPI (device=%s): latency %.1f ms (< 30 ms: %s) | "
+                 "throughput %.1f FPS (> 30 FPS: %s) over %d inferences",
+                 cfg.device, lat, lat_v, seg_fps, fps_v, inf_rate.count)
+
+
 def main() -> int:
     cfg = parse_config()
+    if cfg.log_file:
+        _attach_log_file(cfg.log_file)
     log.info("config: %s", cfg)
 
     src = create_source(cfg)
@@ -175,7 +230,7 @@ def main() -> int:
         t.start()
 
     presenter = Presenter(cfg.window, cfg.display_scale, cfg.alpha, cfg.mask_color,
-                          headless=cfg.headless, record=cfg.record, src=src)
+                          headless=cfg.headless, record=cfg.record, src=src, view=cfg.view)
     last_frame = None
     try:
         while not shutdown.is_set():
@@ -204,19 +259,15 @@ def main() -> int:
         pass
     finally:
         shutdown.set()
+        # Log the KPI verdicts first thing on the way out, so they are emitted
+        # (and flushed to --log-file) on ANY exit — clean quit, window close, or
+        # Ctrl-C — before the slower governor/thread teardown below.
+        _log_kpis(cfg, governor, inf_rate)
         governor.stop()
         presenter.close()
         src.close()
         for t in threads:
             t.join(timeout=1.0)
-
-    gov = governor.snapshot()
-    if gov.get("available"):
-        verdict = "PASS" if gov["within_cap"] else "OVER"
-        log.info("GPU KPI (< %.0f%%): %s — peak busiest-engine %.1f%% mean %.1f%% "
-                 "(samples=%d, throttle_engaged=%s)",
-                 gov["cap_pct"], verdict, gov["peak_pct"], gov["mean_pct"],
-                 gov["samples"], gov["throttle_engaged"])
     return 0
 
 

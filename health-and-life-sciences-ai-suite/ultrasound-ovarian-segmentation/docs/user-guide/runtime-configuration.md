@@ -76,12 +76,13 @@ machines it degrades to a no-op so the app still runs for development.
 
 | Flag | Env | Default | Description |
 |---|---|---|---|
+| `--view` | `VIEW` | `side_by_side` | Layout: `side_by_side` (original + segmented) or `overlay` (mask drawn on the frame) |
 | `--alpha` | `ALPHA` | `0.45` | Mask overlay opacity (0–1) |
 | `--mask-color` | `MASK_COLOR` | `0,0,255` | Overlay colour as `B,G,R` (default red) |
 | `--display-scale` | `DISPLAY_SCALE` | `1.0` | Scale the output window |
 | `--window` | `WINDOW` | `Ovarian Tumor Segmentation` | Window title |
 | `--headless` | `HEADLESS=1` | off | No window (useful for recording / soak tests) |
-| `--record` | `RECORD` | — | Write an annotated `.mp4` of the output |
+| `--record` | `RECORD` | — | Write an annotated `.mp4` of the output (captures the current view) |
 
 ## Examples
 
@@ -95,4 +96,10 @@ Tighten the GPU cap and use a green mask:
 
 ```powershell
 .\run.ps1 -Source file -Input clip.mp4 -Device GPU -- --gpu-cap 70 --mask-color 0,255,0
+```
+
+Use the single-pane overlay instead of the default side-by-side view:
+
+```powershell
+.\run.ps1 -Source file -Input clip.mp4 -Device GPU -- --view overlay
 ```

@@ -54,9 +54,10 @@ Full walkthrough — dataset, backbone, training, export, expected Dice — in
 .\run.ps1 -Source file -Input C:\path\to\clip.mp4 -Device GPU
 ```
 
-A window opens showing each frame with the tumor-mask overlay, plus a HUD
-showing inference FPS/latency and live iGPU utilization. Press `q` or `Esc` to
-quit, or close the window.
+A window opens showing the **original frame next to the segmented frame**
+(tumor-mask overlay), plus a HUD showing inference FPS/latency and live iGPU
+utilization; pass `--view overlay` for a single overlaid pane. Press `q` or `Esc`
+to quit, or close the window.
 
 Other sources:
 

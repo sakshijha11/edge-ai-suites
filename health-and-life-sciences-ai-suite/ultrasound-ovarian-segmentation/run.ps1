@@ -10,10 +10,10 @@
 #   # Pick the model arch (default ds2net); SAM-256 needs its three IRs prepared:
 #   .\run.ps1 -Arch sam -Source file -Input C:\path\to\clip.mp4
 #
-# Any extra flags are forwarded to the app, e.g.:
-#   .\run.ps1 -Source file -Input clip.mp4 -- --gpu-cap 80 --record out.mp4
+# Any extra app flags go after a literal `--` and are forwarded as-is, e.g.:
+#   .\run.ps1 -Source file -Input clip.mp4 -- --record out.mp4 --log-file reports\run.log
 #
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [ValidateSet("file", "webcam", "folder")]
     [string]$Source = "file",
