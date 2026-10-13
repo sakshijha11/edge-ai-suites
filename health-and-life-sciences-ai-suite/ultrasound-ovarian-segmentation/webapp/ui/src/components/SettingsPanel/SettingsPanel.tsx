@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { setUseCases, setDevices, setSelection } from '../../redux/slices/pipelineSlice';
 import { api } from '../../services/api';
-import type { UseCase } from '../../services/api';
 import Accordion from '../common/Accordion';
 import '../../components/ConfigModal/ConfigModal.css';
 
@@ -41,7 +40,6 @@ const SettingsPanel: React.FC = () => {
 
   const uc = useCases.find((u) => u.key === selection.usecase) || useCases[0];
   const deviceLabel = (id: string) => devices.find((d) => d.id === id)?.label || id;
-  const ucBuilt = (u: UseCase) => Object.values(u.ir_available || {}).some(Boolean);
   const selReady = !!uc?.ir_available?.[selection.precision];
   const buildCmd = uc?.task === 'ovarian_sam'
     ? '.\\prepare_model.ps1 -Arch sam'
@@ -58,35 +56,13 @@ const SettingsPanel: React.FC = () => {
   return (
     <Accordion title="Configuration" defaultOpen>
       <div className="config-section">
-        {/* Use case */}
+        {/* Model / use-case — selected at launch on the CLI (run_webapp.ps1
+            -UseCase); read-only here. The Start button runs this model. */}
         <div className="config-field-group">
-          <label className="config-label">Use case</label>
-          {useCases.length > 1 ? (
-            <select
-              className="config-select"
-              style={{ width: '100%' }}
-              value={selection.usecase}
-              disabled={isProcessing}
-              onChange={(e) => {
-                const next = useCases.find((u) => u.key === e.target.value);
-                dispatch(setSelection({
-                  usecase: e.target.value,
-                  device: next?.devices[0] || 'CPU',
-                  precision: next?.precisions[0] || 'fp16',
-                }));
-              }}
-            >
-              {useCases.map((u) => (
-                <option key={u.key} value={u.key} disabled={!u.enabled}>
-                  {u.label}{!u.enabled ? ' (unavailable)' : !ucBuilt(u) ? ' (model not built)' : ''}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="config-active-video">
-              <span className="config-video-badge">{uc.label}</span>
-            </div>
-          )}
+          <label className="config-label">Model</label>
+          <div className="config-active-video">
+            <span className="config-video-badge">{uc.label}</span>
+          </div>
         </div>
 
         {uc.enabled && !selReady && (

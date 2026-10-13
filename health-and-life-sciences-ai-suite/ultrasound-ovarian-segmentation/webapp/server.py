@@ -52,6 +52,15 @@ DEVICE_LABELS = {"CPU": "CPU", "GPU": "Intel iGPU", "NPU": "Intel NPU"}
 app = Flask(__name__, static_folder=None)
 worker = PipelineWorker()
 _core = ov.Core()
+
+# The model/use-case is chosen at launch on the CLI (run_webapp.ps1 -UseCase ->
+# WEBAPP_USECASE); the UI no longer selects it — it only shows the active model
+# and the Start button runs it. Default to the first registered use-case.
+_ACTIVE_USECASE = (os.environ.get("WEBAPP_USECASE", "").strip()
+                   or next(iter(USE_CASES)))
+if _ACTIVE_USECASE not in USE_CASES:
+    raise SystemExit(f"[webapp] unknown WEBAPP_USECASE '{_ACTIVE_USECASE}'. "
+                     f"Choose one of: {', '.join(USE_CASES)}")
 _METRICS_HISTORY: deque = deque(maxlen=60)
 
 
@@ -157,6 +166,8 @@ def usecases():
     present = {d["id"] for d in available_devices()}
     out = []
     for uc in USE_CASES.values():
+        if uc.key != _ACTIVE_USECASE:
+            continue
         out.append({
             "key": uc.key,
             "label": uc.label,
@@ -179,7 +190,9 @@ def usecases():
 def start():
     body = request.get_json(force=True, silent=True) or {}
     try:
-        worker.start(body["usecase"], body["device"],
+        # The model/use-case is fixed at launch (WEBAPP_USECASE); the UI only
+        # supplies device / precision / source.
+        worker.start(_ACTIVE_USECASE, body["device"],
                      body.get("precision", "fp16"), body.get("video"))
         if _MON_OK:
             try:
