@@ -31,7 +31,7 @@ import argparse
 import os
 from pathlib import Path
 
-# Air-gapped boxes cannot reach the HF hub; force offline loading before import.
+# Force offline loading so export never blocks on an HF hub network call.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 

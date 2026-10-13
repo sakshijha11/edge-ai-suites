@@ -25,7 +25,7 @@ cache/
 # separately on the target box, not committed. See the web-dashboard guide.
 monitoring/tools/
 
-# Web UI: the prebuilt webapp/ui/dist IS committed (air-gapped boxes have no
-# npm); never commit node_modules or Vite's dev cache.
+# Web UI: the prebuilt webapp/ui/dist IS committed so the target needs no
+# npm/Node toolchain; never commit node_modules or Vite's dev cache.
 webapp/ui/node_modules/
 webapp/ui/.vite/
