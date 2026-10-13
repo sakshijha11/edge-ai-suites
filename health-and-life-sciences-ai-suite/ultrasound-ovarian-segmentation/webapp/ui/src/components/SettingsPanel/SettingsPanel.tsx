@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { setUseCases, setDevices, setSelection } from '../../redux/slices/pipelineSlice';
 import { api } from '../../services/api';
+import type { UseCase } from '../../services/api';
 import Accordion from '../common/Accordion';
 import '../../components/ConfigModal/ConfigModal.css';
 
@@ -40,6 +41,11 @@ const SettingsPanel: React.FC = () => {
 
   const uc = useCases.find((u) => u.key === selection.usecase) || useCases[0];
   const deviceLabel = (id: string) => devices.find((d) => d.id === id)?.label || id;
+  const ucBuilt = (u: UseCase) => Object.values(u.ir_available || {}).some(Boolean);
+  const selReady = !!uc?.ir_available?.[selection.precision];
+  const buildCmd = uc?.task === 'ovarian_sam'
+    ? '.\\prepare_model.ps1 -Arch sam'
+    : '.\\prepare_model.ps1 -Train -Verify';
 
   if (!uc) {
     return (
@@ -72,7 +78,7 @@ const SettingsPanel: React.FC = () => {
             >
               {useCases.map((u) => (
                 <option key={u.key} value={u.key} disabled={!u.enabled}>
-                  {u.label}{!u.enabled ? ' (unavailable)' : ''}
+                  {u.label}{!u.enabled ? ' (unavailable)' : !ucBuilt(u) ? ' (model not built)' : ''}
                 </option>
               ))}
             </select>
@@ -82,6 +88,13 @@ const SettingsPanel: React.FC = () => {
             </div>
           )}
         </div>
+
+        {uc.enabled && !selReady && (
+          <p className="config-hint" style={{ color: '#c62828', marginBottom: 12 }}>
+            ⚠️ This model isn't built on this box yet. Build it with{' '}
+            <code>{buildCmd}</code> (see Model Preparation), then Start.
+          </p>
+        )}
 
         {/* Device */}
         <div className="config-field-group">

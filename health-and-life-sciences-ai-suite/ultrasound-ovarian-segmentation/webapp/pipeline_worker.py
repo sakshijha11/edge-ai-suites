@@ -139,7 +139,11 @@ class PipelineWorker:
         if arch == "ds2net":
             ir = uc.ir_path(precision)
             if not ir.exists():
-                raise FileNotFoundError(f"model IR not found: {ir}")
+                raise FileNotFoundError(
+                    f"model IR not built on this box: {ir}. Build it with  "
+                    f".\\prepare_model.ps1 -Verify  (export a checkpoint) or  "
+                    f".\\prepare_model.ps1 -Train -Verify  (train first), then Start "
+                    f"again - see docs/user-guide/get-started/model-preparation.md")
             argv += ["--model", str(ir)]
         else:
             enc = uc.ir_path(precision)
@@ -147,7 +151,10 @@ class PipelineWorker:
             yolo = uc.bbox_ir_path(precision)
             for label, ir in (("encoder", enc), ("decoder", dec), ("yolo bbox", yolo)):
                 if not ir.exists():
-                    raise FileNotFoundError(f"SAM {label} IR not found: {ir}")
+                    raise FileNotFoundError(
+                        f"SAM {label} IR not built on this box: {ir}. Build the SAM "
+                        f"models with  .\\prepare_model.ps1 -Arch sam , then Start "
+                        f"again - see docs/user-guide/get-started/model-preparation.md")
             argv += ["--sam-encoder", str(enc), "--sam-decoder", str(dec),
                      "--sam-yolo", str(yolo)]
         if os.environ.get("WEBAPP_HEADLESS", "0") != "0":

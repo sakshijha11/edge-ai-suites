@@ -8,6 +8,7 @@ const TopPanel: React.FC = () => {
   const dispatch = useAppDispatch();
   const isProcessing = useAppSelector((s) => s.app.isProcessing);
   const selection = useAppSelector((s) => s.pipeline.selection);
+  const useCases = useAppSelector((s) => s.pipeline.useCases);
   const lifecycle = useAppSelector((s) => s.pipeline.lifecycle);
   const error = useAppSelector((s) => s.pipeline.error);
   const [notification, setNotification] = useState('');
@@ -22,6 +23,14 @@ const TopPanel: React.FC = () => {
     if (busy || isProcessing) return;
     if (!selection.usecase || !selection.device) {
       flash('⚠️ Pick a device first');
+      return;
+    }
+    const uc = useCases.find((u) => u.key === selection.usecase);
+    if (uc && !uc.ir_available?.[selection.precision]) {
+      const cmd = uc.task === 'ovarian_sam'
+        ? '.\\prepare_model.ps1 -Arch sam'
+        : '.\\prepare_model.ps1 -Train -Verify';
+      flash(`❌ ${uc.label} isn't built on this box — run ${cmd} first`, 6000);
       return;
     }
     try {
