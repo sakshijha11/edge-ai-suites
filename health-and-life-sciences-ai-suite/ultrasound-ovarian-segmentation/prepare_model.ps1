@@ -49,8 +49,13 @@ if (-not (Test-Path $py)) {
 
 if ($Arch -eq "sam") {
     # SAM-256 pipeline: three IRs (YOLO@320 bbox, encoder@256, multimask decoder).
+    # Probe importability without aborting under $ErrorActionPreference = "Stop":
+    # a fresh venv prints a traceback on stderr that Windows PowerShell 5.1
+    # promotes to a terminating NativeCommandError. Relax it just here.
+    $eap = $ErrorActionPreference; $ErrorActionPreference = "SilentlyContinue"
     & $py -c "import torch, ultralytics, segment_anything" 2>$null
     $haveBackend = ($LASTEXITCODE -eq 0)
+    $ErrorActionPreference = $eap
     if ($SkipInstall -or $haveBackend) {
         Write-Host "[prepare] SAM model-prep dependencies already present - skipping pip install"
     } else {
@@ -118,8 +123,14 @@ if ($Arch -eq "sam") {
 # Skip the online install when torch+transformers are already importable (e.g. an
 # existing venv). Pass -Venv <path> to reuse an environment, or -SkipInstall to
 # force-skip.
+#
+# Probe importability without aborting under $ErrorActionPreference = "Stop": a
+# fresh venv prints a traceback on stderr that Windows PowerShell 5.1 promotes to
+# a terminating NativeCommandError. Relax it just here.
+$eap = $ErrorActionPreference; $ErrorActionPreference = "SilentlyContinue"
 & $py -c "import torch, transformers" 2>$null
 $haveBackend = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $eap
 if ($SkipInstall -or $haveBackend) {
     Write-Host "[prepare] model-prep dependencies already present - skipping pip install"
 } else {

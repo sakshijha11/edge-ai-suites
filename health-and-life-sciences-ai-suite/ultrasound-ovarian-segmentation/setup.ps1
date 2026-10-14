@@ -25,8 +25,14 @@ $py = Join-Path $Venv "Scripts\python.exe"
 # If the runtime deps are already importable (e.g. an existing venv), skip the
 # online pip install so setup works offline. Pass -Venv <path> to reuse an
 # environment, or -SkipInstall to force-skip.
+#
+# Probe importability WITHOUT aborting: a fresh venv prints a ModuleNotFoundError
+# traceback on stderr, which Windows PowerShell 5.1 promotes to a terminating
+# NativeCommandError under $ErrorActionPreference = "Stop". Relax it just here.
+$eap = $ErrorActionPreference; $ErrorActionPreference = "SilentlyContinue"
 & $py -c "import openvino, cv2, numpy" 2>$null
 $haveRuntime = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $eap
 
 if ($SkipInstall -or $haveRuntime) {
     Write-Host "[setup] runtime dependencies already present - skipping pip install"
