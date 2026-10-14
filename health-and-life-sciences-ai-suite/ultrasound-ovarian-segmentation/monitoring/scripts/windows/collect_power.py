@@ -81,8 +81,12 @@ def run_socwatch_quick(collection_duration, interval_ms):
             logging.warning(stderr)
             return "unavailable" if _is_fatal_socwatch_error(stderr) else "retry"
         return "ok"
-    except FileNotFoundError as e:
-        logging.error(f"❌ SoCWatch binary not found at '{SOCWATCH_PATH}': {e}")
+    except FileNotFoundError:
+        logging.warning(
+            f"SoCWatch binary not found at '{SOCWATCH_PATH}'; the power chart will be "
+            "unavailable. This optional tool ships under monitoring/tools/ "
+            "(staged separately); other metrics are unaffected."
+        )
         return "unavailable"
     except subprocess.CalledProcessError as e:
         message = e.stderr or str(e)

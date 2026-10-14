@@ -27,7 +27,11 @@ def start_npu_monitoring(interval_seconds, stop_event, output_dir=None):
     )
 
     if not os.path.exists(exe_path):
-        logger.error(f"NPU exe not found at {exe_path}")
+        logger.warning(
+            f"NPU utilization tool not found at {exe_path}; the NPU chart will be "
+            "unavailable. This optional Level-Zero helper ships under "
+            "monitoring/tools/ (staged separately); other metrics are unaffected."
+        )
         return
 
     process = subprocess.Popen(
